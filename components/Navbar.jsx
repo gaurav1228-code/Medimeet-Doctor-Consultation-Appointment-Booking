@@ -31,47 +31,69 @@ function Navbar() {
       
       if (!isLoaded || !user) {
         console.log("❌ User not loaded yet");
+        setShowRoleButton(false);
         return;
       }
 
       console.log("✅ User loaded, ID:", user.id);
+      console.log("User metadata:", user.unsafeMetadata);
 
+      // First check Clerk metadata - this is faster and more reliable
+      const clerkRole = user.unsafeMetadata?.role;
+      const onboardingCompleted = user.unsafeMetadata?.onboardingCompleted;
+
+      if (clerkRole && clerkRole !== "UNASSIGNED" && onboardingCompleted) {
+        console.log("✨ Role already set in Clerk metadata:", clerkRole);
+        setShowRoleButton(false);
+        return;
+      }
+
+      // If no role in Clerk metadata, check Supabase as fallback
       try {
-        // Add a small delay to ensure webhook has time to create user
-        setTimeout(async () => {
-          console.log("🔄 Querying Supabase...");
-          
-          const { data, error } = await supabase
-            .from("users")
-            .select("role, clerk_user_id, email")
-            .eq("clerk_user_id", user.id)
-            .single();
+        console.log("🔄 Checking Supabase for role...");
+        
+        const { data, error } = await supabase
+          .from("users")
+          .select("role, clerk_user_id, email")
+          .eq("clerk_user_id", user.id)
+          .single();
 
-          console.log("📊 Supabase result:");
-          console.log("- Data:", data);
-          console.log("- Error:", error);
-          console.log("- Role:", data?.role);
+        console.log("📊 Supabase result:");
+        console.log("- Data:", data);
+        console.log("- Error:", error);
 
-          if (error) {
-            console.error("❌ Supabase error:", error);
-            // If user not found, they might be newly created - show role button
-            if (error.code === 'PGRST116') {
-              console.log("🆕 User not found in DB yet, will show role button");
-              setShowRoleButton(true);
-            }
-            return;
-          }
-
-          if (data?.role === "UNASSIGNED") {
-            console.log("🎯 Role is UNASSIGNED, showing button");
+        if (error) {
+          console.log("❌ Supabase error:", error);
+          // If user not found, they are newly created - show role button
+          if (error.code === 'PGRST116') {
+            console.log("🆕 User not found in DB yet, will show role button");
             setShowRoleButton(true);
           } else {
-            console.log("✨ Role already set:", data?.role);
             setShowRoleButton(false);
           }
-        }, 2000); // 2 second delay for webhook processing
+          return;
+        }
+
+        if (data?.role === "UNASSIGNED" || !data?.role) {
+          console.log("🎯 Role is UNASSIGNED or null, showing button");
+          setShowRoleButton(true);
+        } else {
+          console.log("✨ Role already set in DB:", data?.role);
+          // Sync the role to Clerk metadata if it's missing
+          if (!clerkRole || clerkRole === "UNASSIGNED") {
+            console.log("🔄 Syncing role to Clerk metadata");
+            await user.update({
+              unsafeMetadata: {
+                role: data.role,
+                onboardingCompleted: true
+              }
+            });
+          }
+          setShowRoleButton(false);
+        }
       } catch (error) {
         console.error("❌ Error checking role:", error);
+        setShowRoleButton(false);
       }
     };
 
@@ -82,14 +104,19 @@ function Navbar() {
     if (!user) return;
 
     try {
-      // Update role in Supabase
+      console.log("🎯 Selecting role:", role);
+
+      // Update role in Supabase first
       const { error: supabaseError } = await supabase
         .from("users")
-        .update({ role, updated_at: new Date().toISOString() })
+        .update({ 
+          role, 
+          updated_at: new Date().toISOString() 
+        })
         .eq("clerk_user_id", user.id);
 
       if (supabaseError) {
-        console.error("Supabase update error:", supabaseError);
+        console.error("❌ Supabase update error:", supabaseError);
         alert("Failed to update role. Please try again.");
         return;
       }
@@ -102,12 +129,14 @@ function Navbar() {
         }
       });
 
-      // Hide the role button
+      console.log("✅ Role updated successfully");
+      
+      // Hide the role button immediately
       setShowRoleButton(false);
       alert(`Welcome! You're now registered as a ${role.toLowerCase()}.`);
 
     } catch (error) {
-      console.error("Error updating role:", error);
+      console.error("❌ Error updating role:", error);
       alert("Error updating role. Please try again.");
     }
   };

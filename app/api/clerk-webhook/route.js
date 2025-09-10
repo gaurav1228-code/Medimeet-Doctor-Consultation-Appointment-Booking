@@ -36,12 +36,13 @@ export async function POST(req) {
     console.log("Event data:", evt.data);
 
     if (evt.type === "user.created") {
-      const { id, email_addresses, first_name, last_name, image_url } = evt.data;
+      const { id, email_addresses, first_name, last_name, image_url, unsafe_metadata } = evt.data;
       
       const email = email_addresses?.[0]?.email_address || null;
       const name = `${first_name || ""} ${last_name || ""}`.trim() || null;
 
       console.log("👤 Creating user:", { id, email, name });
+      console.log("Initial metadata:", unsafe_metadata);
 
       // Insert with UNASSIGNED role - user will select role later
       const { data, error } = await supabase.from("users").insert({
@@ -61,7 +62,6 @@ export async function POST(req) {
         return new Response("Database error", { status: 500 });
       } else {
         console.log("✅ User inserted into Supabase:", email);
-        console.log("Inserted data:", data);
       }
     }
 
@@ -72,7 +72,7 @@ export async function POST(req) {
       const name = `${first_name || ""} ${last_name || ""}`.trim() || null;
 
       console.log("👤 Updating user:", { id, email, name });
-      console.log("Unsafe metadata:", unsafe_metadata);
+      console.log("Updated metadata:", unsafe_metadata);
 
       // Prepare update data
       const updateData = {
@@ -82,10 +82,10 @@ export async function POST(req) {
         updated_at: new Date().toISOString(),
       };
 
-      // If role is in unsafe metadata, update it
+      // If role is in unsafe metadata and it's not UNASSIGNED, update it
       if (unsafe_metadata?.role && unsafe_metadata.role !== "UNASSIGNED") {
         updateData.role = unsafe_metadata.role;
-        console.log("Updating role to:", unsafe_metadata.role);
+        console.log("🎯 Updating role to:", unsafe_metadata.role);
       }
 
       const { data, error } = await supabase
