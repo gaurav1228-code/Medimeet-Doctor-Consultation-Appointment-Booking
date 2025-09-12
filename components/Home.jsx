@@ -31,7 +31,7 @@ function Home() {
                 journey all in one secure platform.
               </p>
               <div className="flex gap-6">
-                <Link href={"/onboarding"}>
+                <Link href={"https://blessed-doberman-1.accounts.dev/sign-up?sign_up_force_redirect_url=https%3A%2F%2F13ecdb390fb2.ngrok-free.app%2F&redirect_url=https%3A%2F%2F13ecdb390fb2.ngrok-free.app%2F"}>
                   <Button
                     size="lg"
                     className="bg-emerald-600 text-white hover:bg-emerald-700"
@@ -40,7 +40,7 @@ function Home() {
                   </Button>
                 </Link>
 
-                <Link href={"/doctors"}>
+                <Link href={"/Patient-dashboard"}>
                   <Button
                     size="lg"
                     variant="outline"
