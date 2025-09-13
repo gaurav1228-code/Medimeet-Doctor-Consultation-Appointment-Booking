@@ -2,9 +2,10 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Button } from "@/components/ui/button";
 import { ThemeProvider } from "@/components/theme-provider";
-import Navbar from "@/components/Navbar";
+import Navbar from "@/components/NavbarClient";
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
+import NavbarClient from "@/components/NavbarClient";
 
 
 const inter = Inter({
@@ -29,7 +30,7 @@ export default function RootLayout({ children }) {
           disableTransitionOnChange
         >
           <header>
-            <Navbar />
+            <NavbarClient/>
           </header>
           <main className="min-h-screen">{children}</main>
           <footer>

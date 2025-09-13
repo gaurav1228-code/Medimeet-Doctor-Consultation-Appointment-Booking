@@ -1,9 +1,13 @@
+// app/Patient-dashboard/page.jsx
+import Pricing from '@/components/Pricing'
 import React from 'react'
 
-function page() {
+function PatientDash() {
   return (
-    <div>page</div>
+    <div className='mt-29'>
+      <Pricing/>
+    </div>
   )
 }
 
-export default page
+export default PatientDash
