@@ -1,3 +1,4 @@
+// components/Home.jsx
 "use client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -235,4 +236,3 @@ function Home() {
 }
 
 export default Home;
-

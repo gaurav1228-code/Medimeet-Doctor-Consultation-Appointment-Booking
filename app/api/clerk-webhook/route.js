@@ -1,4 +1,5 @@
-// app/api/clerk-webhook/route.js
+// app/api/clerk-webhook/route.js (Enhanced for subscriptions)
+import 'server-only';
 import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
@@ -7,6 +8,13 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
+
+// Credit allocations per plan
+const PLAN_CREDITS = {
+  free_user: 2,
+  standard: 10,
+  premium: 24,
+};
 
 export async function POST(req) {
   try {
@@ -33,74 +41,25 @@ export async function POST(req) {
     });
 
     console.log("✅ Webhook verified:", evt.type);
-    console.log("Event data:", evt.data);
 
+    // Handle user creation
     if (evt.type === "user.created") {
-      const { id, email_addresses, first_name, last_name, image_url, unsafe_metadata } = evt.data;
-      
-      const email = email_addresses?.[0]?.email_address || null;
-      const name = `${first_name || ""} ${last_name || ""}`.trim() || null;
-
-      console.log("👤 Creating user:", { id, email, name });
-      console.log("Initial metadata:", unsafe_metadata);
-
-      // Insert with UNASSIGNED role - user will select role later
-      const { data, error } = await supabase.from("users").insert({
-        clerk_user_id: id,
-        email,
-        name,
-        image_url,
-        role: "UNASSIGNED",
-        credits: 2,
-        verification_status: "PENDING",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-
-      if (error) {
-        console.error("❌ Supabase insert error:", error);
-        return new Response("Database error", { status: 500 });
-      } else {
-        console.log("✅ User inserted into Supabase:", email);
-      }
+      await handleUserCreated(evt.data);
     }
 
+    // Handle user updates
     if (evt.type === "user.updated") {
-      const { id, email_addresses, first_name, last_name, image_url, unsafe_metadata } = evt.data;
-      
-      const email = email_addresses?.[0]?.email_address || null;
-      const name = `${first_name || ""} ${last_name || ""}`.trim() || null;
+      await handleUserUpdated(evt.data);
+    }
 
-      console.log("👤 Updating user:", { id, email, name });
-      console.log("Updated metadata:", unsafe_metadata);
+    // Handle subscription events
+    if (evt.type === "subscription.created" || evt.type === "subscription.updated") {
+      await handleSubscriptionChange(evt.data);
+    }
 
-      // Prepare update data
-      const updateData = {
-        email,
-        name,
-        image_url,
-        updated_at: new Date().toISOString(),
-      };
-
-      // If role is in unsafe metadata and it's not UNASSIGNED, update it
-      if (unsafe_metadata?.role && unsafe_metadata.role !== "UNASSIGNED") {
-        updateData.role = unsafe_metadata.role;
-        console.log("🎯 Updating role to:", unsafe_metadata.role);
-      }
-
-      const { data, error } = await supabase
-        .from("users")
-        .update(updateData)
-        .eq("clerk_user_id", id)
-        .select();
-
-      if (error) {
-        console.error("❌ Supabase update error:", error);
-        return new Response("Database error", { status: 500 });
-      } else {
-        console.log("✅ User updated in Supabase:", email);
-        console.log("Updated data:", data);
-      }
+    // Handle subscription cancellation
+    if (evt.type === "subscription.deleted") {
+      await handleSubscriptionDeleted(evt.data);
     }
 
     return new Response("Webhook received", { status: 200 });
@@ -108,4 +67,161 @@ export async function POST(req) {
     console.error("❌ Webhook verification failed:", err);
     return new Response("Invalid signature", { status: 400 });
   }
+}
+
+async function handleUserCreated(userData) {
+  const { id, email_addresses, first_name, last_name, image_url } = userData;
+  
+  const email = email_addresses?.[0]?.email_address || null;
+  const name = `${first_name || ""} ${last_name || ""}`.trim() || null;
+
+  console.log("👤 Creating user:", { id, email, name });
+
+  const { error } = await supabase.from("users").insert({
+    clerk_user_id: id,
+    email,
+    name,
+    image_url,
+    role: "UNASSIGNED",
+    credits: 2, // Default credits
+    verification_status: "PENDING",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
+
+  if (error) {
+    console.error("❌ Supabase insert error:", error);
+    throw error;
+  }
+  
+  console.log("✅ User created in Supabase:", email);
+}
+
+async function handleUserUpdated(userData) {
+  const { id, email_addresses, first_name, last_name, image_url, unsafe_metadata } = userData;
+  
+  const email = email_addresses?.[0]?.email_address || null;
+  const name = `${first_name || ""} ${last_name || ""}`.trim() || null;
+
+  console.log("👤 Updating user:", { id, email, name });
+
+  const updateData = {
+    email,
+    name,
+    image_url,
+    updated_at: new Date().toISOString(),
+  };
+
+  // Update role if provided in metadata
+  if (unsafe_metadata?.role && unsafe_metadata.role !== "UNASSIGNED") {
+    updateData.role = unsafe_metadata.role;
+    console.log("🎯 Updating role to:", unsafe_metadata.role);
+  }
+
+  const { error } = await supabase
+    .from("users")
+    .update(updateData)
+    .eq("clerk_user_id", id);
+
+  if (error) {
+    console.error("❌ Supabase update error:", error);
+    throw error;
+  }
+  
+  console.log("✅ User updated in Supabase");
+}
+
+async function handleSubscriptionChange(subscriptionData) {
+  const { user_id, plan, status } = subscriptionData;
+  
+  console.log("💳 Subscription change:", { user_id, plan, status });
+
+  // Only process active subscriptions
+  if (status !== 'active') {
+    console.log("⏸️ Subscription not active, skipping credit allocation");
+    return;
+  }
+
+  // Get user from Supabase
+  const { data: userData, error: userError } = await supabase
+    .from('users')
+    .select('*')
+    .eq('clerk_user_id', user_id)
+    .single();
+
+  if (userError || !userData) {
+    console.error("❌ User not found:", userError);
+    return;
+  }
+
+  // Only allocate credits to patients
+  if (userData.role !== 'PATIENT') {
+    console.log("👨‍⚕️ User is not a patient, skipping credit allocation");
+    return;
+  }
+
+  // Get credits for plan
+  const creditsToAllocate = PLAN_CREDITS[plan] || 0;
+  
+  if (creditsToAllocate === 0) {
+    console.log("🚫 No credits to allocate for plan:", plan);
+    return;
+  }
+
+  // Check if already allocated this month
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  
+  const { data: existingTransaction } = await supabase
+    .from('credit_transactions')
+    .select('id')
+    .eq('user_id', userData.id)
+    .eq('package_id', plan)
+    .gte('created_at', `${currentMonth}-01`)
+    .limit(1);
+
+  if (existingTransaction && existingTransaction.length > 0) {
+    console.log("✅ Credits already allocated this month");
+    return;
+  }
+
+  // Allocate credits
+  const { error: transactionError } = await supabase
+    .from('credit_transactions')
+    .insert([{
+      user_id: userData.id,
+      amount: creditsToAllocate,
+      type: 'CREDIT_PURCHASE',
+      package_id: plan,
+    }]);
+
+  if (transactionError) {
+    console.error("❌ Error creating transaction:", transactionError);
+    return;
+  }
+
+  // Update user credits
+  const { error: updateError } = await supabase
+    .from('users')
+    .update({ 
+      credits: userData.credits + creditsToAllocate,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', userData.id);
+
+  if (updateError) {
+    console.error("❌ Error updating credits:", updateError);
+    return;
+  }
+
+  console.log(`✅ Allocated ${creditsToAllocate} credits for ${plan} plan`);
+}
+
+async function handleSubscriptionDeleted(subscriptionData) {
+  const { user_id } = subscriptionData;
+  
+  console.log("🗑️ Subscription cancelled for user:", user_id);
+  
+  // You might want to add logic here to handle subscription cancellation
+  // For example, marking the user as having no active subscription
+  // or sending them a notification
 }

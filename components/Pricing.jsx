@@ -1,3 +1,4 @@
+// components/Pricing.jsx
 import React from 'react'
 import { Card, CardContent } from './ui/card'
 import { PricingTable } from '@clerk/nextjs'

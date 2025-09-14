@@ -1,4 +1,4 @@
-
+// app/page.jsx
 import Home from '@/components/Home'
 import React from 'react'
 
