@@ -7,8 +7,8 @@ import {
   SignUpButton,
   UserButton,
 } from "@clerk/nextjs";
-import RoleSelector from "./RoleSelector";
 import MobileMenu from "./MobileMenu";
+import { Button } from "./ui/button";
 
 export default function Navbar({ userData }) {
   return (
@@ -26,9 +26,7 @@ export default function Navbar({ userData }) {
 
         <div className="flex items-center gap-6">
           <SignedIn>
-            {userData?.role === 'UNASSIGNED' && <RoleSelector />}
-            
-            {userData?.role === 'PATIENT' && (
+            {userData?.role === "PATIENT" && (
               <div className="flex items-center px-3 py-2 bg-blue-50 border border-blue-200 rounded-md">
                 <span className="text-sm font-medium text-blue-700">
                   💳 Credits: {userData.credits}
@@ -36,22 +34,28 @@ export default function Navbar({ userData }) {
               </div>
             )}
 
-            {userData?.role === 'PATIENT' && <MobileMenu />}
+            {userData?.role === "PATIENT" && <MobileMenu />}
             <UserButton />
           </SignedIn>
 
           <SignedOut>
             <div className="flex gap-2">
-              <SignUpButton mode="redirect" forceRedirectUrl="/">
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium">
+              <SignUpButton mode="redirect" forceRedirectUrl="/RoleSelector">
+                <Button
+                  variant="outline"
+                  className="border-emerald-700/30 text-white hover:bg-muted/80"
+                >
                   Sign Up
-                </button>
+                </Button>
               </SignUpButton>
 
-              <SignInButton mode="redirect" forceRedirectUrl="/">
-                <button className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium">
+              <SignInButton mode="redirect" forceRedirectUrl="/RoleSelector">
+                <Button
+                  variant="outline"
+                  className="border-emerald-700/30 text-white hover:bg-muted/80"
+                >
                   Sign In
-                </button>
+                </Button>
               </SignInButton>
             </div>
           </SignedOut>

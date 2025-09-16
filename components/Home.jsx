@@ -9,7 +9,6 @@ import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import Pricing from "./Pricing";
 
-
 function Home() {
   return (
     <div className="bg-background">
@@ -32,7 +31,11 @@ function Home() {
                 journey all in one secure platform.
               </p>
               <div className="flex gap-6">
-                <Link href={"https://blessed-doberman-1.accounts.dev/sign-up?sign_up_force_redirect_url=https%3A%2F%2F13ecdb390fb2.ngrok-free.app%2F&redirect_url=https%3A%2F%2F13ecdb390fb2.ngrok-free.app%2F"}>
+                <Link
+                  href={
+                    "https://blessed-doberman-1.accounts.dev/sign-up?sign_up_force_redirect_url=https://deputy-furthermore-routers-lens.trycloudflare.com&redirect_url=https://deputy-furthermore-routers-lens.trycloudflare.com"
+                  }
+                >
                   <Button
                     size="lg"
                     className="bg-emerald-600 text-white hover:bg-emerald-700"
@@ -40,7 +43,6 @@ function Home() {
                     Get Started <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
-
                 <Link href={"/Patient-dashboard"}>
                   <Button
                     size="lg"
@@ -230,7 +232,6 @@ function Home() {
           </Card>
         </div>
       </section>
-
     </div>
   );
 }

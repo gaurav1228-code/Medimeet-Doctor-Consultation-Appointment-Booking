@@ -1,5 +1,5 @@
 // app/api/clerk-webhook/route.js (Enhanced for subscriptions)
-import 'server-only';
+import "server-only";
 import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
@@ -16,11 +16,23 @@ const PLAN_CREDITS = {
   premium: 24,
 };
 
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers":
+        "Content-Type, svix-id, svix-timestamp, svix-signature",
+    },
+  });
+}
+
 export async function POST(req) {
   try {
     const payload = await req.text();
     const headersList = headers();
-    
+
     const svix_id = headersList.get("svix-id");
     const svix_timestamp = headersList.get("svix-timestamp");
     const svix_signature = headersList.get("svix-signature");
@@ -53,7 +65,10 @@ export async function POST(req) {
     }
 
     // Handle subscription events
-    if (evt.type === "subscription.created" || evt.type === "subscription.updated") {
+    if (
+      evt.type === "subscription.created" ||
+      evt.type === "subscription.updated"
+    ) {
       await handleSubscriptionChange(evt.data);
     }
 
@@ -62,16 +77,26 @@ export async function POST(req) {
       await handleSubscriptionDeleted(evt.data);
     }
 
-    return new Response("Webhook received", { status: 200 });
+    return new Response("Webhook received", { 
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+      }
+    });
   } catch (err) {
     console.error("❌ Webhook verification failed:", err);
-    return new Response("Invalid signature", { status: 400 });
+    return new Response("Invalid signature", { 
+      status: 400,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+      }
+    });
   }
 }
 
 async function handleUserCreated(userData) {
   const { id, email_addresses, first_name, last_name, image_url } = userData;
-  
+
   const email = email_addresses?.[0]?.email_address || null;
   const name = `${first_name || ""} ${last_name || ""}`.trim() || null;
 
@@ -83,7 +108,7 @@ async function handleUserCreated(userData) {
     name,
     image_url,
     role: "UNASSIGNED",
-    credits: 2, // Default credits
+    credits: 0, // Default credits
     verification_status: "PENDING",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -93,13 +118,20 @@ async function handleUserCreated(userData) {
     console.error("❌ Supabase insert error:", error);
     throw error;
   }
-  
+
   console.log("✅ User created in Supabase:", email);
 }
 
 async function handleUserUpdated(userData) {
-  const { id, email_addresses, first_name, last_name, image_url, unsafe_metadata } = userData;
-  
+  const {
+    id,
+    email_addresses,
+    first_name,
+    last_name,
+    image_url,
+    unsafe_metadata,
+  } = userData;
+
   const email = email_addresses?.[0]?.email_address || null;
   const name = `${first_name || ""} ${last_name || ""}`.trim() || null;
 
@@ -127,26 +159,26 @@ async function handleUserUpdated(userData) {
     console.error("❌ Supabase update error:", error);
     throw error;
   }
-  
+
   console.log("✅ User updated in Supabase");
 }
 
 async function handleSubscriptionChange(subscriptionData) {
   const { user_id, plan, status } = subscriptionData;
-  
+
   console.log("💳 Subscription change:", { user_id, plan, status });
 
   // Only process active subscriptions
-  if (status !== 'active') {
+  if (status !== "active") {
     console.log("⏸️ Subscription not active, skipping credit allocation");
     return;
   }
 
   // Get user from Supabase
   const { data: userData, error: userError } = await supabase
-    .from('users')
-    .select('*')
-    .eq('clerk_user_id', user_id)
+    .from("users")
+    .select("*")
+    .eq("clerk_user_id", user_id)
     .single();
 
   if (userError || !userData) {
@@ -155,14 +187,14 @@ async function handleSubscriptionChange(subscriptionData) {
   }
 
   // Only allocate credits to patients
-  if (userData.role !== 'PATIENT') {
+  if (userData.role !== "PATIENT") {
     console.log("👨‍⚕️ User is not a patient, skipping credit allocation");
     return;
   }
 
   // Get credits for plan
   const creditsToAllocate = PLAN_CREDITS[plan] || 0;
-  
+
   if (creditsToAllocate === 0) {
     console.log("🚫 No credits to allocate for plan:", plan);
     return;
@@ -170,13 +202,13 @@ async function handleSubscriptionChange(subscriptionData) {
 
   // Check if already allocated this month
   const currentMonth = new Date().toISOString().slice(0, 7);
-  
+
   const { data: existingTransaction } = await supabase
-    .from('credit_transactions')
-    .select('id')
-    .eq('user_id', userData.id)
-    .eq('package_id', plan)
-    .gte('created_at', `${currentMonth}-01`)
+    .from("credit_transactions")
+    .select("id")
+    .eq("user_id", userData.id)
+    .eq("package_id", plan)
+    .gte("created_at", `${currentMonth}-01`)
     .limit(1);
 
   if (existingTransaction && existingTransaction.length > 0) {
@@ -186,13 +218,15 @@ async function handleSubscriptionChange(subscriptionData) {
 
   // Allocate credits
   const { error: transactionError } = await supabase
-    .from('credit_transactions')
-    .insert([{
-      user_id: userData.id,
-      amount: creditsToAllocate,
-      type: 'CREDIT_PURCHASE',
-      package_id: plan,
-    }]);
+    .from("credit_transactions")
+    .insert([
+      {
+        user_id: userData.id,
+        amount: creditsToAllocate,
+        type: "CREDIT_PURCHASE",
+        package_id: plan,
+      },
+    ]);
 
   if (transactionError) {
     console.error("❌ Error creating transaction:", transactionError);
@@ -201,12 +235,12 @@ async function handleSubscriptionChange(subscriptionData) {
 
   // Update user credits
   const { error: updateError } = await supabase
-    .from('users')
-    .update({ 
+    .from("users")
+    .update({
       credits: userData.credits + creditsToAllocate,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     })
-    .eq('id', userData.id);
+    .eq("id", userData.id);
 
   if (updateError) {
     console.error("❌ Error updating credits:", updateError);
@@ -218,9 +252,9 @@ async function handleSubscriptionChange(subscriptionData) {
 
 async function handleSubscriptionDeleted(subscriptionData) {
   const { user_id } = subscriptionData;
-  
+
   console.log("🗑️ Subscription cancelled for user:", user_id);
-  
+
   // You might want to add logic here to handle subscription cancellation
   // For example, marking the user as having no active subscription
   // or sending them a notification

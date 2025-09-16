@@ -1,5 +1,4 @@
-// app/Patient-dashboard/page.jsx (Fixed)
-// import 'server-only';
+// app/Patient-dashboard/page.jsx 
 import { getUserData } from '@/lib/server-actions';
 import { redirect } from 'next/navigation';
 import Pricing from '@/components/Pricing';
@@ -24,11 +23,11 @@ async function PatientDashboard() {
   }
 
   return (
-    <div className='pt-24 px-6 min-h-screen bg-background'>
+    <div className='pt-28 px-6 min-h-screen bg-background'>
       <div className='container mx-auto max-w-6xl'>
         {/* Header Section */}
         <div className='mb-8'>
-          <h1 className='text-3xl md:text-4xl font-bold text-white mb-2'>
+          <h1 className='text-3xl md:text-4xl lg:text-[40px] font-bold text-white mb-2'>
             Welcome back, {userData.name?.split(' ')[0] || 'Patient'}!
           </h1>
           <p className='text-muted-foreground text-lg'>
@@ -37,7 +36,7 @@ async function PatientDashboard() {
         </div>
 
         {/* Stats Cards */}
-        <div className='grid grid-cols-1 md:grid-cols-3 gap-6 mb-8'>
+        <div className='grid grid-cols-1 md:grid-cols-2 gap-6 mb-8'>
           <Card className='border-emerald-900/40'>
             <CardHeader className='pb-2'>
               <CardTitle className='text-sm font-medium text-muted-foreground flex items-center'>
@@ -70,25 +69,7 @@ async function PatientDashboard() {
             </CardContent>
           </Card>
 
-          <Card className='border-emerald-900/40'>
-            <CardHeader className='pb-2'>
-              <CardTitle className='text-sm font-medium text-muted-foreground flex items-center'>
-                <User className='h-4 w-4 mr-2' />
-                Account Status
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Badge 
-                variant="outline" 
-                className="bg-emerald-900/30 border-emerald-700/30 text-emerald-400"
-              >
-                {userData.verification_status}
-              </Badge>
-              <p className='text-xs text-muted-foreground mt-2'>
-                Account verified and active
-              </p>
-            </CardContent>
-          </Card>
+          
         </div>
 
         {/* Quick Actions */}
@@ -146,7 +127,7 @@ async function PatientDashboard() {
         </div>
 
         {/* Credits Running Low Warning */}
-        {userData.credits < 4 && (
+        {userData.credits < 2 && (
           <Card className='mb-8 border-orange-900/40 bg-orange-950/20'>
             <CardContent className='p-6'>
               <div className='flex items-center'>

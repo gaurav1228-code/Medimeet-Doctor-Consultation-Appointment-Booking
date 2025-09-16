@@ -5,51 +5,46 @@ import { NextResponse } from 'next/server';
 const isProtectedRoute = createRouteMatcher([
   "/Patient-dashboard(.*)",
   "/Doctor-dashboard(.*)", 
-  "/appointments(.*)",
-  "/medical-history(.*)",
-  "/profile(.*)",
-  "/billing(.*)",
-  "/settings(.*)",
+  "/RoleSelector",
 ]);
 
+const publicRoutes = ["/", "/api/", "/_next/"];
+
 export default clerkMiddleware(async (auth, req) => {
-  if (isProtectedRoute(req)) {
-    const { userId, sessionClaims, redirectToSignIn } = await auth();
-    
-    // Redirect to sign in if not authenticated
-    if (!userId) {
-      return redirectToSignIn();
-    }
-    
+  const { userId, sessionClaims } = await auth();
+  const pathname = req.nextUrl.pathname;
+  
+  // Allow public routes
+  if (publicRoutes.some(route => pathname.startsWith(route))) {
+    return NextResponse.next();
+  }
+  
+  // Redirect unauthenticated users to sign in for protected routes
+  if (!userId && isProtectedRoute(req)) {
+    return auth().redirectToSignIn();
+  }
+  
+  if (userId) {
     const userRole = sessionClaims?.metadata?.role;
-    const pathname = req.nextUrl.pathname;
     
-    console.log("🛡️ Middleware: User role:", userRole, "Path:", pathname);
-    
-    // Allow access if role is UNASSIGNED (user is still selecting role)
-    if (userRole === 'UNASSIGNED') {
-      console.log("✅ Middleware: Allowing UNASSIGNED user to access:", pathname);
-      return NextResponse.next();
+    // If user has no role and is not on RoleSelector, redirect
+    if ((!userRole || userRole === 'UNASSIGNED') && pathname !== '/RoleSelector') {
+      return NextResponse.redirect(new URL('/RoleSelector', req.url));
     }
     
-    // Role-based route protection
+    // If user has a role and is on RoleSelector, redirect to appropriate dashboard
+    if ((userRole === 'PATIENT' || userRole === 'DOCTOR') && pathname === '/RoleSelector') {
+      return NextResponse.redirect(new URL(`/${userRole.toLowerCase()}-dashboard`, req.url));
+    }
+    
+    // Role-based access control
     if (pathname.startsWith('/Patient-dashboard') && userRole !== 'PATIENT') {
-      console.log("🚫 Middleware: Redirecting non-PATIENT from Patient dashboard");
-      if (userRole === 'DOCTOR') {
-        return NextResponse.redirect(new URL('/Doctor-dashboard', req.url));
-      }
       return NextResponse.redirect(new URL('/', req.url));
     }
     
     if (pathname.startsWith('/Doctor-dashboard') && userRole !== 'DOCTOR') {
-      console.log("🚫 Middleware: Redirecting non-DOCTOR from Doctor dashboard");
-      if (userRole === 'PATIENT') {
-        return NextResponse.redirect(new URL('/Patient-dashboard', req.url));
-      }
       return NextResponse.redirect(new URL('/', req.url));
     }
-    
-    console.log("✅ Middleware: Allowing access to:", pathname);
   }
   
   return NextResponse.next();
@@ -57,7 +52,6 @@ export default clerkMiddleware(async (auth, req) => {
 
 export const config = {
   matcher: [
-    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
-    '/(api|trpc)(.*)',
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };
