@@ -11,7 +11,7 @@ const supabase = createClient(
 export async function POST(req) {
   try {
     const { userId } = await auth();
-    const { role, specialty, experience, credential_url, description } = await req.json();
+    const { role, specialty, experience, credential_url, description, verification_status } = await req.json();
     
     console.log("🔄 API: Updating doctor profile for user:", userId);
     
@@ -21,17 +21,25 @@ export async function POST(req) {
     }
     
     // Update in Supabase with doctor details
+    const updateData = { 
+      role,
+      specialty,
+      experience,
+      credential_url,
+      description,
+      updated_at: new Date().toISOString()
+    };
+
+    // Only set verification_status if provided, otherwise default to PENDING
+    if (verification_status) {
+      updateData.verification_status = verification_status;
+    } else {
+      updateData.verification_status = 'PENDING'; // Default to pending verification
+    }
+
     const { data, error } = await supabase
       .from('users')
-      .update({ 
-        role,
-        specialty,
-        experience,
-        credential_url,
-        description,
-        verification_status: 'PENDING', // Set to pending for verification
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('clerk_user_id', userId)
       .select()
       .single();

@@ -35,6 +35,7 @@ export default function Navbar({ userData }) {
             )}
 
             {userData?.role === "PATIENT" && <MobileMenu />}
+            {(userData?.role === "DOCTOR" && userData?.verification_status === "VERIFIED") && <MobileMenu />}
             <UserButton />
           </SignedIn>
 

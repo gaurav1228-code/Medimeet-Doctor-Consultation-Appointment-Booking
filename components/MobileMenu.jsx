@@ -9,6 +9,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Button } from "./ui/button";
+import Link from "next/link";
 
 function MobileMenu() {
   const [isOpen, setIsOpen] = React.useState(false);
@@ -38,6 +39,14 @@ function MobileMenu() {
         >
           Medical History
         </Button>
+        <Link href="/user-profile" onClick={() => setIsOpen(false)}>
+          <Button
+            variant="ghost"
+            className="w-full justify-start rounded-md hover:bg-green-50 hover:text-green-600"
+          >
+            Edit Profile
+          </Button>
+        </Link>
       </CollapsibleContent>
     </Collapsible>
   );

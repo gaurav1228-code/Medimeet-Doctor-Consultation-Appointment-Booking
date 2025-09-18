@@ -26,6 +26,35 @@ export default clerkMiddleware(async (auth, req) => {
   
   if (userId) {
     const userRole = sessionClaims?.metadata?.role;
+
+     // Get user verification status from Supabase
+    let verificationStatus = null;
+    try {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('verification_status')
+        .eq('clerk_user_id', userId)
+        .single();
+      
+      verificationStatus = userData?.verification_status;
+    } catch (error) {
+      console.error('Error fetching verification status:', error);
+    }
+
+     // Redirect doctors to verification if not verified
+    if (userRole === 'DOCTOR' && 
+        verificationStatus !== 'VERIFIED' && 
+        !pathname.startsWith('/Doctor-dashboard/verification') &&
+        pathname !== '/RoleSelector') {
+      return NextResponse.redirect(new URL('/Doctor-dashboard/verification', req.url));
+    }
+    
+    // Redirect verified doctors to dashboard if they try to access verification
+    if (userRole === 'DOCTOR' && 
+        verificationStatus === 'VERIFIED' && 
+        pathname.startsWith('/Doctor-dashboard/verification')) {
+      return NextResponse.redirect(new URL('/Doctor-dashboard', req.url));
+    }
     
     // If user has no role and is not on RoleSelector, redirect
     if ((!userRole || userRole === 'UNASSIGNED') && pathname !== '/RoleSelector') {

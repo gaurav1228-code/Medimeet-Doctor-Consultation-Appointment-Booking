@@ -28,7 +28,12 @@ import { Label } from "@/components/ui/label";
 import { SPECIALTIES } from "@/lib/specialities";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { createClient } from "@supabase/supabase-js";
 
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 const doctorFormSchema = z.object({
   speciality: z.string().min(1, "Speciality is required"),
   experience: z
@@ -49,6 +54,7 @@ export default function RoleSelectorPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState("choose-role");
   const [redirecting, setRedirecting] = useState(false);
+  const [userData, setUserData] = useState(null);
   const { user, isLoaded } = useUser();
   const { updateUserRole } = useClientActions();
   const router = useRouter();
@@ -76,19 +82,26 @@ export default function RoleSelectorPage() {
   useEffect(() => {
     if (isLoaded && user && !redirecting) {
       const userRole = user.unsafeMetadata?.role;
+      const verificationStatus = userData?.verification_status;
       
       if (userRole === "PATIENT") {
         setRedirecting(true);
         router.replace("/Patient-dashboard");
       } else if (userRole === "DOCTOR") {
-        setRedirecting(true);
-        router.replace("/Doctor-dashboard");
+        // Redirect to verification if not verified, otherwise to dashboard
+        if (verificationStatus === "VERIFIED") {
+          setRedirecting(true);
+          router.replace("/Doctor-dashboard");
+        } else {
+          setRedirecting(true);
+          router.replace("/Doctor-dashboard/verification");
+        }
       } else if (userRole === "ADMIN") {
         setRedirecting(true);
         router.replace("/admin");
       }
     }
-  }, [user, isLoaded, router, redirecting]);
+  }, [user, isLoaded, router, redirecting, userData]);
 
   const handleRoleSelect = async (role) => {
     if (!user || isLoading) return;
@@ -169,6 +182,7 @@ export default function RoleSelectorPage() {
           experience: data.experience,
           credential_url: data.credentialURL,
           description: data.description,
+            verification_status: "PENDING", // Set to pending verification
         }),
       });
 
@@ -197,7 +211,7 @@ export default function RoleSelectorPage() {
 
       // Use router.replace for smoother navigation
       setRedirecting(true);
-      router.replace("/Doctor-dashboard");
+      router.replace("/Doctor-dashboard/verification");
     } catch (error) {
       console.error("❌ Error submitting doctor profile:", error);
       alert("Error submitting doctor profile. Please try again.");
