@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
+import { APPOINTMENT_CREDIT_COST } from "@/lib/constants";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -11,22 +12,16 @@ const supabase = createClient(
 export async function POST(req) {
   try {
     const { userId } = await auth();
-
     if (!userId) {
-      return NextResponse.json(
-        { success: false, error: "Not authenticated" },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: "Not authenticated" }, { status: 401 });
     }
 
     const { role } = await req.json();
-
     console.log("🔄 API: Updating role for user:", userId, "to:", role);
 
     // Only give credits to PATIENTS, not DOCTORS
-    const credits = role === "PATIENT" ? 2 : 0;
+    const credits = role === "PATIENT" ? APPOINTMENT_CREDIT_COST : 0;
 
-    // Update in Supabase
     const { data, error } = await supabase
       .from("users")
       .update({
@@ -40,10 +35,7 @@ export async function POST(req) {
 
     if (error) {
       console.error("❌ API: Supabase error:", error);
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: 500 }
-      );
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
     console.log("✅ API: Role updated successfully:", data);
@@ -51,9 +43,6 @@ export async function POST(req) {
     
   } catch (error) {
     console.error("❌ API: Unexpected error:", error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

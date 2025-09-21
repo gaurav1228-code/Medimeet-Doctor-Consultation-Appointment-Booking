@@ -4,51 +4,156 @@
 import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import { createClient } from "@supabase/supabase-js";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Save, CheckCircle, XCircle, User, Shield, FileText, LinkIcon, ExternalLink, Stethoscope, Briefcase, FileText as FileTextIcon } from "lucide-react";
+import {
+  Loader2,
+  Save,
+  CheckCircle,
+  XCircle,
+  User,
+  Shield,
+  FileText,
+  LinkIcon,
+  ExternalLink,
+  Stethoscope,
+  Briefcase,
+  FileText as FileTextIcon,
+  Upload,
+  Plus,
+  Info,
+} from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SPECIALTIES } from "@/lib/specialities";
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
+// Form validation schemas
+const personalInfoSchema = z.object({
+  phone_number: z.string().optional(),
+  date_of_birth: z.string().optional(),
+  address: z.string().optional(),
+});
+
+const doctorInfoSchema = z.object({
+  specialty: z.string().optional(),
+  experience: z.number().optional(),
+  description: z.string().optional(),
+  medical_license_number: z.string().optional(),
+});
+
+const documentSchema = z.object({
+  type: z.string().min(1, "Document type is required"),
+  description: z.string().optional(),
+  url: z
+    .string()
+    .url("Please enter a valid Google Drive URL")
+    .min(1, "URL is required"),
+});
+
 export default function UserProfilePage() {
   const { user } = useUser();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [userData, setUserData] = useState(null);
-  const [formData, setFormData] = useState({
-    phone_number: "",
-    date_of_birth: "",
-    address: "",
-    aadhaar_number: "",
-    pan_number: "",
-    medical_license_number: "",
-    specialty: "",
-    experience: "",
-    description: ""
-  });
-  const [documentLinks, setDocumentLinks] = useState({
-    aadhaar: "",
-    pan: "",
-    medical_license: "",
-    credential: ""
-  });
   const [message, setMessage] = useState({ type: "", text: "" });
-  const [linkDialogOpen, setLinkDialogOpen] = useState({
-    aadhaar: false,
-    pan: false,
-    medical_license: false,
-    credential: false
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [newDocument, setNewDocument] = useState({
+    type: "",
+    description: "",
+    url: "",
   });
+
+  // Personal info form
+  const {
+    register: registerPersonal,
+    handleSubmit: handlePersonalSubmit,
+    formState: { errors: personalErrors },
+    getValues: getPersonalValues,
+  } = useForm({
+    resolver: zodResolver(personalInfoSchema),
+  });
+
+  // Doctor info form
+  const {
+    register: registerDoctor,
+    handleSubmit: handleDoctorSubmit,
+    formState: { errors: doctorErrors },
+    setValue: setDoctorValue,
+    watch: watchDoctor,
+    getValues: getDoctorValues,
+  } = useForm({
+    resolver: zodResolver(doctorInfoSchema),
+  });
+
+  // Document form
+  const {
+    register: registerDocument,
+    handleSubmit: handleDocumentSubmit,
+    formState: { errors: documentErrors },
+    reset: resetDocument,
+  } = useForm({
+    resolver: zodResolver(documentSchema),
+  });
+
+  // Add this useEffect to the UserProfilePage component
+  useEffect(() => {
+    // Clean up any fdprocessedid attributes that might be added by extensions
+    const cleanFormAttributes = () => {
+      if (typeof window !== "undefined") {
+        // Remove fdprocessedid from all form elements
+        document.querySelectorAll("[fdprocessedid]").forEach((el) => {
+          el.removeAttribute("fdprocessedid");
+        });
+      }
+    };
+
+    cleanFormAttributes();
+
+    // Also clean up on any DOM changes
+    const observer = new MutationObserver(cleanFormAttributes);
+    observer.observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["fdprocessedid"],
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -60,152 +165,143 @@ export default function UserProfilePage() {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('clerk_user_id', user.id)
+        .from("users")
+        .select("*")
+        .eq("clerk_user_id", user.id)
         .single();
 
       if (error) throw error;
 
       setUserData(data);
-      setFormData({
-        phone_number: data.phone_number || "",
-        date_of_birth: data.date_of_birth || "",
-        address: data.address || "",
-        aadhaar_number: data.aadhaar_number || "",
-        pan_number: data.pan_number || "",
-        medical_license_number: data.medical_license_number || "",
-        specialty: data.specialty || "",
-        experience: data.experience || "",
-        description: data.description || ""
-      });
     } catch (error) {
-      console.error('Error fetching user data:', error);
+      console.error("Error fetching user data:", error);
       setMessage({ type: "error", text: "Failed to load profile data" });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleSelectChange = (name, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleLinkChange = (docType, value) => {
-    setDocumentLinks(prev => ({
-      ...prev,
-      [docType]: value
-    }));
-  };
-
-  const handleSave = async (e) => {
-    e.preventDefault();
+  const handleSaveAll = async () => {
     try {
       setSaving(true);
       setMessage({ type: "", text: "" });
 
+      // Get values from both forms
+      const personalData = getPersonalValues();
+      const doctorData = getDoctorValues();
+
+      // Prepare update data
+      const updateData = {
+        phone_number: personalData.phone_number,
+        date_of_birth: personalData.date_of_birth,
+        address: personalData.address,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Add doctor-specific fields if user is a doctor
+      if (isDoctor) {
+        updateData.specialty = doctorData.specialty;
+        updateData.experience = doctorData.experience;
+        updateData.description = doctorData.description;
+        updateData.medical_license_number = doctorData.medical_license_number;
+      }
+
       const { error } = await supabase
-        .from('users')
-        .update({
-          ...formData,
-          updated_at: new Date().toISOString()
-        })
-        .eq('clerk_user_id', user.id);
+        .from("users")
+        .update(updateData)
+        .eq("clerk_user_id", user.id);
 
       if (error) throw error;
 
-      setMessage({ type: "success", text: "Profile updated successfully!" });
-      fetchUserData(); // Refresh data
+      setMessage({
+        type: "success",
+        text: "Profile information updated successfully!",
+      });
+      fetchUserData();
     } catch (error) {
-      console.log('Error updating profile:', error);
-      setMessage({ type: "error", text: "Failed to update profile" });
+      console.log("Error updating profile info:", error);
+      setMessage({
+        type: "error",
+        text: "Failed to update profile information",
+      });
     } finally {
       setSaving(false);
     }
   };
 
-  const handleAddDocumentLink = async (docType) => {
+  const handleAddDocument = async (data) => {
     try {
       setSaving(true);
       setMessage({ type: "", text: "" });
 
-      const link = documentLinks[docType];
-      if (!link) {
-        setMessage({ type: "error", text: "Please enter a valid link" });
-        return;
-      }
-
       // Validate Google Drive link format
-      if (!link.includes('drive.google.com')) {
-        setMessage({ type: "error", text: "Please provide a valid Google Drive link" });
+      if (!data.url.includes("drive.google.com")) {
+        setMessage({
+          type: "error",
+          text: "Please provide a valid Google Drive link",
+        });
         return;
       }
 
       // Convert to direct download link if it's a view link
-      let finalLink = link;
-      if (link.includes('/file/d/')) {
-        const fileId = link.match(/\/file\/d\/([^\/]+)/)?.[1];
+      let finalLink = data.url;
+      if (data.url.includes("/file/d/")) {
+        const fileId = data.url.match(/\/file\/d\/([^\/]+)/)?.[1];
         if (fileId) {
           finalLink = `https://drive.google.com/uc?export=download&id=${fileId}`;
         }
       }
 
-      const newDocument = {
-        type: docType,
+      const documentToAdd = {
+        type: data.type,
+        description: data.description || "",
         url: finalLink,
         uploaded_at: new Date().toISOString(),
         verified: false,
-        is_drive_link: true
+        is_drive_link: true,
       };
 
       const { error } = await supabase
-        .from('users')
+        .from("users")
         .update({
-          document_urls: [...(userData.document_urls || []), newDocument],
-          updated_at: new Date().toISOString()
+          document_urls: [...(userData.document_urls || []), documentToAdd],
+          updated_at: new Date().toISOString(),
         })
-        .eq('clerk_user_id', user.id);
+        .eq("clerk_user_id", user.id);
 
       if (error) throw error;
 
-      setMessage({ type: "success", text: "Document link added successfully!" });
-      setLinkDialogOpen(prev => ({ ...prev, [docType]: false }));
-      setDocumentLinks(prev => ({ ...prev, [docType]: "" }));
-      fetchUserData(); // Refresh data
+      setMessage({ type: "success", text: "Document added successfully!" });
+      setLinkDialogOpen(false);
+      resetDocument();
+      fetchUserData();
     } catch (error) {
-      console.error('Error adding document link:', error);
-      setMessage({ type: "error", text: "Failed to add document link" });
+      console.error("Error adding document:", error);
+      setMessage({ type: "error", text: "Failed to add document" });
     } finally {
       setSaving(false);
     }
   };
 
-  // Check if a field should be disabled (already filled and verified)
   const isFieldDisabled = (fieldName) => {
     if (!userData) return false;
-    
+
     // Doctor-specific fields that should be disabled once set
-    const doctorFields = ['specialty', 'experience', 'description', 'medical_license_number'];
+    const doctorFields = [
+      "specialty",
+      "experience",
+      "medical_license_number",
+    ];
+    // Note: description is removed from the disabled fields list
     if (doctorFields.includes(fieldName) && userData[fieldName]) {
       return true;
     }
-    
+
     return false;
   };
 
   // Check if user is a doctor
-  const isDoctor = userData?.role === 'DOCTOR';
+  const isDoctor = userData?.role === "DOCTOR";
 
   if (loading) {
     return (
@@ -218,31 +314,55 @@ export default function UserProfilePage() {
   return (
     <div className="min-h-screen pt-24 px-6 bg-background">
       <div className="container mx-auto max-w-7xl">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white">User Profile</h1>
-          <p className="text-muted-foreground">Manage your personal information and verification documents</p>
-          {userData?.role && (
-            <div className="mt-2">
-              <span className="inline-block px-3 py-1 bg-emerald-900/30 text-emerald-400 rounded-full text-sm">
-                Role: {userData.role}
-              </span>
-              {userData.verification_status && (
-                <span className={`inline-block px-3 py-1 ml-2 rounded-full text-sm ${
-                  userData.verification_status === 'VERIFIED' 
-                    ? 'bg-green-900/30 text-green-400' 
-                    : userData.verification_status === 'PENDING'
-                    ? 'bg-amber-900/30 text-amber-400'
-                    : 'bg-red-900/30 text-red-400'
-                }`}>
-                  Status: {userData.verification_status}
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white">User Profile</h1>
+            <p className="text-muted-foreground">
+              Manage your personal information and verification documents
+            </p>
+            {userData?.role && (
+              <div className="mt-2">
+                <span className="inline-block px-3 py-1 bg-emerald-900/30 text-emerald-400 rounded-full text-sm">
+                  Role: {userData.role}
                 </span>
-              )}
-            </div>
-          )}
+                {userData.verification_status && (
+                  <span
+                    className={`inline-block px-3 py-1 ml-2 rounded-full text-sm ${
+                      userData.verification_status === "VERIFIED"
+                        ? "bg-green-900/30 text-green-400"
+                        : userData.verification_status === "PENDING"
+                        ? "bg-amber-900/30 text-amber-400"
+                        : "bg-red-900/30 text-red-400"
+                    }`}
+                  >
+                    Status: {userData.verification_status}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          
+          {/* Single Save Button for all forms */}
+          <Button 
+            onClick={handleSaveAll} 
+            disabled={saving} 
+            className="bg-emerald-600 hover:bg-emerald-700"
+            size="lg"
+          >
+            {saving ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Save className="h-4 w-4 mr-2" />
+            )}
+            Save All Changes
+          </Button>
         </div>
 
         {message.text && (
-          <Alert variant={message.type === "success" ? "default" : "destructive"} className="mb-6">
+          <Alert
+            variant={message.type === "success" ? "default" : "destructive"}
+            className="mb-6"
+          >
             <AlertDescription>{message.text}</AlertDescription>
           </Alert>
         )}
@@ -257,47 +377,61 @@ export default function UserProfilePage() {
               </CardTitle>
               <CardDescription>Your basic personal details</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  value={user?.emailAddresses[0]?.emailAddress || ""}
-                  disabled
-                  className="bg-muted"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone_number">Phone Number</Label>
-                <Input
-                  id="phone_number"
-                  name="phone_number"
-                  value={formData.phone_number}
-                  onChange={handleInputChange}
-                  placeholder="+91 1234567890"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="date_of_birth">Date of Birth</Label>
-                <Input
-                  id="date_of_birth"
-                  name="date_of_birth"
-                  type="date"
-                  value={formData.date_of_birth}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
-                <Textarea
-                  id="address"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleInputChange}
-                  placeholder="Enter your complete address"
-                  rows={3}
-                />
-              </div>
+            <CardContent>
+              <form className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    value={user?.emailAddresses[0]?.emailAddress || ""}
+                    disabled
+                    className="bg-muted"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone_number">Phone Number</Label>
+                  <Input
+                    id="phone_number"
+                    placeholder="+91 1234567890"
+                    defaultValue={userData?.phone_number || ""}
+                    {...registerPersonal("phone_number")}
+                  />
+                  {personalErrors.phone_number && (
+                    <p className="text-sm text-red-500">
+                      {personalErrors.phone_number.message}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="date_of_birth">Date of Birth</Label>
+                  <Input
+                    id="date_of_birth"
+                    type="date"
+                    defaultValue={userData?.date_of_birth || ""}
+                    {...registerPersonal("date_of_birth")}
+                  />
+                  {personalErrors.date_of_birth && (
+                    <p className="text-sm text-red-500">
+                      {personalErrors.date_of_birth.message}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="address">Address</Label>
+                  <Textarea
+                    id="address"
+                    placeholder="Enter your complete address"
+                    rows={3}
+                    defaultValue={userData?.address || ""}
+                    {...registerPersonal("address")}
+                  />
+                  {personalErrors.address && (
+                    <p className="text-sm text-red-500">
+                      {personalErrors.address.message}
+                    </p>
+                  )}
+                </div>
+              </form>
             </CardContent>
           </Card>
 
@@ -311,275 +445,252 @@ export default function UserProfilePage() {
                 </CardTitle>
                 <CardDescription>Your medical practice details</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="specialty">Medical Specialty</Label>
-                  <Select
-                    value={formData.specialty}
-                    onValueChange={(value) => handleSelectChange('specialty', value)}
-                    disabled={isFieldDisabled('specialty')}
-                  >
-                    <SelectTrigger id="specialty" className={isFieldDisabled('specialty') ? 'bg-muted' : ''}>
-                      <SelectValue placeholder="Select your specialty" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SPECIALTIES.map((spec, idx) => (
-                        <SelectItem key={idx} value={spec.name}>
-                          <div className="flex items-center gap-2">
-                            <span className="text-emerald-400">
-                              {spec.icon}
-                            </span>
-                            {spec.name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {isFieldDisabled('specialty') && (
-                    <p className="text-xs text-muted-foreground">
-                      Specialty cannot be changed after verification
-                    </p>
-                  )}
-                </div>
+              <CardContent>
+                <form className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="specialty">Medical Specialty</Label>
+                    <Select
+                      defaultValue={userData?.specialty || ""}
+                      onValueChange={(value) =>
+                        setDoctorValue("specialty", value)
+                      }
+                      disabled={isFieldDisabled("specialty")}
+                    >
+                      <SelectTrigger
+                        id="specialty"
+                        className={
+                          isFieldDisabled("specialty") ? "bg-muted" : ""
+                        }
+                      >
+                        <SelectValue placeholder="Select your specialty" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SPECIALTIES.map((spec, idx) => (
+                          <SelectItem key={idx} value={spec.name}>
+                            <div className="flex items-center gap-2">
+                              <span className="text-emerald-400">
+                                {spec.icon}
+                              </span>
+                              {spec.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {isFieldDisabled("specialty") && (
+                      <p className="text-xs text-muted-foreground">
+                        Specialty cannot be changed
+                      </p>
+                    )}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="experience">Years of Experience</Label>
-                  <Input
-                    id="experience"
-                    name="experience"
-                    type="number"
-                    value={formData.experience}
-                    onChange={handleInputChange}
-                    placeholder="e.g. 5"
-                    disabled={isFieldDisabled('experience')}
-                    className={'bg-muted'}
-                  />
-                
-                    <p className="text-xs text-muted-foreground">
-                      Experience cannot be changed after verification
-                    </p>
-                  
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="experience">Years of Experience</Label>
+                    <Input
+                      id="experience"
+                      type="number"
+                      placeholder="e.g. 5"
+                      defaultValue={userData?.experience || ""}
+                      {...registerDoctor("experience", { valueAsNumber: true })}
+                      disabled={isFieldDisabled("experience")}
+                      className={
+                        isFieldDisabled("experience") ? "bg-muted" : ""
+                      }
+                    />
+                    {doctorErrors.experience && (
+                      <p className="text-sm text-red-500">
+                        {doctorErrors.experience.message}
+                      </p>
+                    )}
+                    {isFieldDisabled("experience") && (
+                      <p className="text-xs text-muted-foreground">
+                        Experience cannot be changed
+                      </p>
+                    )}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="description">Professional Description</Label>
-                  <Textarea
-                    id="description"
-                    name="description"
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    placeholder="Describe your expertise and approach to patient care..."
-                    rows={4}
-                    className={"bg-muted"}
-                  />
-                  {isFieldDisabled('description') && (
-                    <p className="text-xs text-muted-foreground">
-                      Description cannot be changed after verification
-                    </p>
-                  )}
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="description">
+                      Professional Description
+                    </Label>
+                    <Textarea
+                      id="description"
+                      placeholder="Describe your expertise and approach to patient care..."
+                      rows={4}
+                      defaultValue={userData?.description || ""}
+                      {...registerDoctor("description")}
+                      // Description is now always editable
+                    />
+                    {doctorErrors.description && (
+                      <p className="text-sm text-red-500">
+                        {doctorErrors.description.message}
+                      </p>
+                    )}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="medical_license_number">Medical License Number</Label>
-                  <Input
-                    id="medical_license_number"
-                    name="medical_license_number"
-                    value={formData.medical_license_number}
-                    onChange={handleInputChange}
-                    placeholder="Medical license number"
-                    disabled={isFieldDisabled('medical_license_number')}
-                    className={isFieldDisabled('medical_license_number') ? 'bg-muted' : ''}
-                  />
-                  {isFieldDisabled('medical_license_number') && (
-                    <p className="text-xs text-muted-foreground">
-                      License number cannot be changed after verification
-                    </p>
-                  )}
-                </div>
-
-                {/* Credential Document Link */}
-                <div className="space-y-2">
-                  <Label>Medical Credentials</Label>
-                  <Dialog open={linkDialogOpen.credential} onOpenChange={(open) => setLinkDialogOpen(prev => ({ ...prev, credential: open }))}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="flex items-center gap-2 w-full">
-                        <FileTextIcon className="h-4 w-4" />
-                        {userData.credential_url ? 'Update Credential Document' : 'Add Credential Document'}
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add Medical Credential Document</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div className="text-sm text-muted-foreground">
-                          Please provide a Google Drive link to your medical degree, certification, or license.
-                        </div>
-                        <Input
-                          placeholder="https://drive.google.com/..."
-                          value={documentLinks.credential}
-                          onChange={(e) => handleLinkChange('credential', e.target.value)}
-                        />
-                        <Button 
-                          onClick={() => handleAddDocumentLink('credential')}
-                          disabled={saving}
-                          className="w-full"
-                        >
-                          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add Document Link"}
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                  
-                  {userData.credential_url && (
-                    <div className="mt-2 p-3 bg-muted rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <FileText className="h-4 w-4 flex-shrink-0" />
-                          <div>
-                            <p className="text-sm font-medium">Medical Credentials</p>
-                            <p className="text-xs text-muted-foreground">
-                              Document uploaded for verification
-                            </p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => window.open(userData.credential_url, '_blank')}
-                          className="h-8 w-8 p-0"
-                          title="View Document"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="medical_license_number">
+                      Medical License Number
+                    </Label>
+                    <Input
+                      id="medical_license_number"
+                      placeholder="Medical license number"
+                      defaultValue={userData?.medical_license_number || ""}
+                      {...registerDoctor("medical_license_number")}
+                      disabled={isFieldDisabled("medical_license_number")}
+                      className={
+                        isFieldDisabled("medical_license_number")
+                          ? "bg-muted"
+                          : ""
+                      }
+                    />
+                    {doctorErrors.medical_license_number && (
+                      <p className="text-sm text-red-500">
+                        {doctorErrors.medical_license_number.message}
+                      </p>
+                    )}
+                    {isFieldDisabled("medical_license_number") && (
+                      <p className="text-xs text-muted-foreground">
+                        License number cannot be changed
+                      </p>
+                    )}
+                  </div>
+                </form>
               </CardContent>
             </Card>
           )}
 
-          {/* Verification Documents */}
+          {/* Documents Section */}
           <Card className="border-emerald-900/40">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Shield className="h-5 w-5 text-emerald-400" />
-                Verification Documents
+                Documents
               </CardTitle>
-              <CardDescription>Add Google Drive links for verification</CardDescription>
+              <CardDescription>
+                Manage your verification documents
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Aadhaar Card */}
-              <div className="space-y-3">
-                <Label htmlFor="aadhaar_number">Aadhaar Number</Label>
-                <Input
-                  id="aadhaar_number"
-                  name="aadhaar_number"
-                  value={formData.aadhaar_number}
-                  onChange={handleInputChange}
-                  placeholder="12-digit Aadhaar number"
-                  maxLength={12}
-                />
-                
-                <Dialog open={linkDialogOpen.aadhaar} onOpenChange={(open) => setLinkDialogOpen(prev => ({ ...prev, aadhaar: open }))}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="flex items-center gap-2">
-                      <LinkIcon className="h-4 w-4" />
-                      Add Aadhaar Card Link
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Add Aadhaar Card Link</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
+              {/* Add Document Dialog */}
+              <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="w-full">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Document
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Document</DialogTitle>
+                    <DialogDescription>
+                      Upload your document to Google Drive and provide the
+                      shareable link
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form
+                    onSubmit={handleDocumentSubmit(handleAddDocument)}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-2">
+                      <Label htmlFor="type">Document Type</Label>
                       <Input
-                        placeholder="https://drive.google.com/..."
-                        value={documentLinks.aadhaar}
-                        onChange={(e) => handleLinkChange('aadhaar', e.target.value)}
+                        id="type"
+                        placeholder="e.g., Medical Degree, Certification, etc."
+                        {...registerDocument("type")}
                       />
-                      <Button 
-                        onClick={() => handleAddDocumentLink('aadhaar')}
-                        disabled={saving}
-                        className="w-full"
-                      >
-                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add Link"}
-                      </Button>
+                      {documentErrors.type && (
+                        <p className="text-sm text-red-500">
+                          {documentErrors.type.message}
+                        </p>
+                      )}
                     </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
-
-              {/* PAN Card */}
-              <div className="space-y-3">
-                <Label htmlFor="pan_number">PAN Number</Label>
-                <Input
-                  id="pan_number"
-                  name="pan_number"
-                  value={formData.pan_number}
-                  onChange={handleInputChange}
-                  placeholder="10-digit PAN number"
-                  maxLength={10}
-                  className="uppercase"
-                />
-                
-                <Dialog open={linkDialogOpen.pan} onOpenChange={(open) => setLinkDialogOpen(prev => ({ ...prev, pan: open }))}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="flex items-center gap-2">
-                      <LinkIcon className="h-4 w-4" />
-                      Add PAN Card Link
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Add PAN Card Link</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="description">
+                        Description (Optional)
+                      </Label>
+                      <Textarea
+                        id="description"
+                        placeholder="Brief description of this document..."
+                        rows={2}
+                        {...registerDocument("description")}
+                      />
+                      {documentErrors.description && (
+                        <p className="text-sm text-red-500">
+                          {documentErrors.description.message}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="url">Google Drive Link</Label>
                       <Input
+                        id="url"
                         placeholder="https://drive.google.com/..."
-                        value={documentLinks.pan}
-                        onChange={(e) => handleLinkChange('pan', e.target.value)}
+                        {...registerDocument("url")}
                       />
-                      <Button 
-                        onClick={() => handleAddDocumentLink('pan')}
-                        disabled={saving}
-                        className="w-full"
-                      >
-                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add Link"}
-                      </Button>
+                      {documentErrors.url && (
+                        <p className="text-sm text-red-500">
+                          {documentErrors.url.message}
+                        </p>
+                      )}
                     </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
+                    <DialogFooter>
+                      <Button type="submit" disabled={saving}>
+                        {saving ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <Upload className="h-4 w-4 mr-2" />
+                        )}
+                        Add Document
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
 
-  
-              {/* Uploaded Documents List */}
-              {userData?.document_urls?.length > 0 && (
+              {/* Documents List */}
+              {userData?.document_urls?.length > 0 ? (
                 <div className="space-y-3">
-                  <Label>Document Links</Label>
+                  <Label>Your Documents</Label>
                   <div className="space-y-2">
                     {userData.document_urls.map((doc, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                      >
                         <div className="flex items-center gap-3">
                           <FileText className="h-4 w-4 flex-shrink-0" />
                           <div>
-                            <p className="text-sm font-medium capitalize">{doc.type}</p>
+                            <p className="text-sm font-medium capitalize">
+                              {doc.type}
+                            </p>
+                            {doc.description && (
+                              <p className="text-xs text-muted-foreground">
+                                {doc.description}
+                              </p>
+                            )}
                             <p className="text-xs text-muted-foreground">
-                              Added {new Date(doc.uploaded_at).toLocaleDateString()}
+                              Added{" "}
+                              {new Date(doc.uploaded_at).toLocaleDateString()}
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           {doc.verified ? (
-                            <CheckCircle className="h-4 w-4 text-green-500" title="Verified" />
+                            <CheckCircle
+                              className="h-4 w-4 text-green-500"
+                              title="Verified"
+                            />
                           ) : (
-                            <XCircle className="h-4 w-4 text-yellow-500" title="Pending Verification" />
+                            <XCircle
+                              className="h-4 w-4 text-yellow-500"
+                              title="Pending Verification"
+                            />
                           )}
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => window.open(doc.url, '_blank')}
+                            onClick={() => window.open(doc.url, "_blank")}
                             className="h-8 w-8 p-0"
                             title="View Document"
                           >
@@ -590,79 +701,76 @@ export default function UserProfilePage() {
                     ))}
                   </div>
                 </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No documents uploaded yet</p>
+                </div>
               )}
             </CardContent>
           </Card>
         </div>
 
-        <div className="mt-6">
-          <Button
-            onClick={handleSave}
-            disabled={saving}
-            className="bg-emerald-600 hover:bg-emerald-700"
-          >
-            {saving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="mr-2 h-4 w-4" />
-                Save Changes
-              </>
-            )}
-          </Button>
-        </div>
-
         {/* Verification Status */}
-        <Card className="mt-6 border-emerald-900/40">
-          <CardHeader>
-            <CardTitle>Verification Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex items-center gap-2">
-                {userData?.aadhaar_verified ? (
-                  <CheckCircle className="h-5 w-5 text-green-500" />
-                ) : (
-                  <XCircle className="h-5 w-5 text-yellow-500" />
-                )}
-                <span>Aadhaar {userData?.aadhaar_verified ? 'Verified' : 'Pending'}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                {userData?.pan_verified ? (
-                  <CheckCircle className="h-5 w-5 text-green-500" />
-                ) : (
-                  <XCircle className="h-5 w-5 text-yellow-500" />
-                )}
-                <span>PAN {userData?.pan_verified ? 'Verified' : 'Pending'}</span>
-              </div>
-              {isDoctor && (
+        {isDoctor && (
+          <Card className="mt-6 border-emerald-900/40">
+            <CardHeader>
+              <CardTitle>Verification Status</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center gap-2">
+                  {userData?.aadhaar_verified ? (
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                  ) : (
+                    <XCircle className="h-5 w-5 text-yellow-500" />
+                  )}
+                  <span>
+                    Aadhaar{" "}
+                    {userData?.aadhaar_verified ? "Verified" : "Pending"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {userData?.pan_verified ? (
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                  ) : (
+                    <XCircle className="h-5 w-5 text-yellow-500" />
+                  )}
+                  <span>
+                    PAN {userData?.pan_verified ? "Verified" : "Pending"}
+                  </span>
+                </div>
                 <div className="flex items-center gap-2">
                   {userData?.medical_license_verified ? (
                     <CheckCircle className="h-5 w-5 text-green-500" />
                   ) : (
                     <XCircle className="h-5 w-5 text-yellow-500" />
                   )}
-                  <span>Medical License {userData?.medical_license_verified ? 'Verified' : 'Pending'}</span>
+                  <span>
+                    Medical License{" "}
+                    {userData?.medical_license_verified
+                      ? "Verified"
+                      : "Pending"}
+                  </span>
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Instructions Card */}
         <Card className="mt-6 border-blue-900/40 bg-blue-950/20">
           <CardHeader>
-            <CardTitle className="text-blue-400">How to Share Documents</CardTitle>
+            <CardTitle className="text-blue-400">
+              How to Share Documents
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
               <li>Upload your document to Google Drive</li>
               <li>Right-click on the file and select "Get link"</li>
               <li>Set sharing permissions to "Anyone with the link"</li>
-              <li>Copy the link and paste it in the respective dialog</li>
+              <li>Copy the link and paste it in the form above</li>
               <li>Our team will verify your documents within 24-48 hours</li>
             </ol>
           </CardContent>

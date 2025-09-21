@@ -1,20 +1,14 @@
-// app/api/clerk-webhook/route.js (Enhanced for subscriptions)
+// app/api/clerk-webhook/route.js
 import "server-only";
 import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
+import { PLAN_CREDITS, USER_ROLES, VERIFICATION_STATUS, TRANSACTION_TYPES } from "@/lib/constants";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
-
-// Credit allocations per plan
-const PLAN_CREDITS = {
-  free_user: 2,
-  standard: 10,
-  premium: 24,
-};
 
 export async function OPTIONS() {
   return new Response(null, {
@@ -107,9 +101,9 @@ async function handleUserCreated(userData) {
     email,
     name,
     image_url,
-    role: "UNASSIGNED",
-    credits: 0, // Default credits
-    verification_status: "PENDING",
+    role: USER_ROLES.UNASSIGNED,
+    credits: 0,
+    verification_status: VERIFICATION_STATUS.PENDING,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   });
@@ -145,7 +139,7 @@ async function handleUserUpdated(userData) {
   };
 
   // Update role if provided in metadata
-  if (unsafe_metadata?.role && unsafe_metadata.role !== "UNASSIGNED") {
+  if (unsafe_metadata?.role && unsafe_metadata.role !== USER_ROLES.UNASSIGNED) {
     updateData.role = unsafe_metadata.role;
     console.log("🎯 Updating role to:", unsafe_metadata.role);
   }
@@ -187,7 +181,7 @@ async function handleSubscriptionChange(subscriptionData) {
   }
 
   // Only allocate credits to patients
-  if (userData.role !== "PATIENT") {
+  if (userData.role !== USER_ROLES.PATIENT) {
     console.log("👨‍⚕️ User is not a patient, skipping credit allocation");
     return;
   }
@@ -223,7 +217,7 @@ async function handleSubscriptionChange(subscriptionData) {
       {
         user_id: userData.id,
         amount: creditsToAllocate,
-        type: "CREDIT_PURCHASE",
+        type: TRANSACTION_TYPES.CREDIT_PURCHASE,
         package_id: plan,
       },
     ]);
@@ -254,8 +248,4 @@ async function handleSubscriptionDeleted(subscriptionData) {
   const { user_id } = subscriptionData;
 
   console.log("🗑️ Subscription cancelled for user:", user_id);
-
-  // You might want to add logic here to handle subscription cancellation
-  // For example, marking the user as having no active subscription
-  // or sending them a notification
 }

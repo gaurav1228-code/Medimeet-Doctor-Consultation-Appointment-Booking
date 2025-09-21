@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
+import { VERIFICATION_STATUS } from '@/lib/constants';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -11,7 +12,17 @@ const supabase = createClient(
 export async function POST(req) {
   try {
     const { userId } = await auth();
-    const { role, specialty, experience, credential_url, description, verification_status } = await req.json();
+    const { 
+      role, 
+      specialty, 
+      experience, 
+      description, 
+      aadhaar_number, 
+      pan_number, 
+      medical_license_number,
+      document_urls,
+      verification_status 
+    } = await req.json();
     
     console.log("🔄 API: Updating doctor profile for user:", userId);
     
@@ -20,22 +31,18 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
     }
     
-    // Update in Supabase with doctor details
     const updateData = { 
       role,
       specialty,
       experience,
-      credential_url,
       description,
-      updated_at: new Date().toISOString()
+      aadhaar_number,
+      pan_number,
+      medical_license_number,
+      document_urls,
+      updated_at: new Date().toISOString(),
+      verification_status: verification_status || VERIFICATION_STATUS.PENDING
     };
-
-    // Only set verification_status if provided, otherwise default to PENDING
-    if (verification_status) {
-      updateData.verification_status = verification_status;
-    } else {
-      updateData.verification_status = 'PENDING'; // Default to pending verification
-    }
 
     const { data, error } = await supabase
       .from('users')

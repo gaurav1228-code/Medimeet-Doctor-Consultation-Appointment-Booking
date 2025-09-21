@@ -1,10 +1,11 @@
-// app/RoleSelector/page.jsx
+// app/RoleSelector/page.jsx (updated doctor form)
 "use client";
 
 import { useState, useEffect } from "react";
 import { useClientActions } from "@/lib/client-actions";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+import { handleApiResponse } from "@/lib/api-utils";
 import {
   Card,
   CardContent,
@@ -13,7 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Stethoscope, User } from "lucide-react";
+import { Loader2, Stethoscope, User, FileText, Upload, X } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -28,33 +29,30 @@ import { Label } from "@/components/ui/label";
 import { SPECIALTIES } from "@/lib/specialities";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { createClient } from "@supabase/supabase-js";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
 const doctorFormSchema = z.object({
   speciality: z.string().min(1, "Speciality is required"),
   experience: z
     .number()
     .min(1, "Experience must be at least 1 year")
     .max(70, "Experience must be less than 70 years"),
-  credentialURL: z
-    .string()
-    .url("Please enter valid URL")
-    .min(1, "Credential URL is required"),
   description: z
     .string()
     .min(20, "Description must be at least 20 characters")
     .max(1000, "Description cannot exceed 1000 characters"),
+  aadhaar_number: z.string().length(12, "Aadhaar must be 12 digits"),
+  pan_number: z.string().length(10, "PAN must be 10 characters"),
+  medical_license_number: z.string().min(1, "Medical license number is required"),
+  aadhaar_url: z.string().url("Please enter valid Google Drive URL").min(1, "Aadhaar document is required"),
+  pan_url: z.string().url("Please enter valid Google Drive URL").min(1, "PAN document is required"),
+  medical_license_url: z.string().url("Please enter valid Google Drive URL").min(1, "Medical license document is required"),
 });
 
 export default function RoleSelectorPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState("choose-role");
   const [redirecting, setRedirecting] = useState(false);
-  const [userData, setUserData] = useState(null);
   const { user, isLoaded } = useUser();
   const { updateUserRole } = useClientActions();
   const router = useRouter();
@@ -71,8 +69,13 @@ export default function RoleSelectorPage() {
     defaultValues: {
       speciality: "",
       experience: undefined,
-      credentialURL: "",
       description: "",
+      aadhaar_number: "",
+      pan_number: "",
+      medical_license_number: "",
+      aadhaar_url: "",
+      pan_url: "",
+      medical_license_url: "",
     },
   });
 
@@ -82,26 +85,19 @@ export default function RoleSelectorPage() {
   useEffect(() => {
     if (isLoaded && user && !redirecting) {
       const userRole = user.unsafeMetadata?.role;
-      const verificationStatus = userData?.verification_status;
-      
+
       if (userRole === "PATIENT") {
         setRedirecting(true);
         router.replace("/Patient-dashboard");
       } else if (userRole === "DOCTOR") {
-        // Redirect to verification if not verified, otherwise to dashboard
-        if (verificationStatus === "VERIFIED") {
-          setRedirecting(true);
-          router.replace("/Doctor-dashboard");
-        } else {
-          setRedirecting(true);
-          router.replace("/Doctor-dashboard/verification");
-        }
+        setRedirecting(true);
+        router.replace("/Doctor-dashboard/verification");
       } else if (userRole === "ADMIN") {
         setRedirecting(true);
         router.replace("/admin");
       }
     }
-  }, [user, isLoaded, router, redirecting, userData]);
+  }, [user, isLoaded, router, redirecting]);
 
   const handleRoleSelect = async (role) => {
     if (!user || isLoading) return;
@@ -110,44 +106,23 @@ export default function RoleSelectorPage() {
     try {
       console.log("🔄 Starting role selection for:", role);
 
-      // Update Clerk metadata first
-      await user.update({
-        unsafeMetadata: {
-          role: role,
-          onboardingCompleted: true,
-        },
-      });
-
-      console.log("✅ Clerk metadata updated");
-
-      // Then update role using client action
+      // Update role using client action
       const result = await updateUserRole(role);
 
       console.log("📊 Role update result:", result);
 
       if (result.success) {
         console.log("✅ Role update successful, redirecting...");
-        // Use router.replace instead of window.location for smoother navigation
         setRedirecting(true);
-        router.replace(role === "PATIENT" ? "/Patient-dashboard" : "/Doctor-dashboard");
+        router.replace(
+          role === "PATIENT" ? "/Patient-dashboard" : "/Doctor-dashboard/verification"
+        );
       } else {
         throw new Error(result.error);
       }
     } catch (error) {
       console.error("❌ Error updating role:", error);
       alert("Error updating role. Please try again.");
-
-      // Revert Clerk metadata if update fails
-      try {
-        await user.update({
-          unsafeMetadata: {
-            role: "UNASSIGNED",
-            onboardingCompleted: false,
-          },
-        });
-      } catch (revertError) {
-        console.error("❌ Failed to revert Clerk metadata:", revertError);
-      }
     } finally {
       setIsLoading(false);
     }
@@ -158,9 +133,61 @@ export default function RoleSelectorPage() {
 
     setIsLoading(true);
     try {
-      console.log("🔄 Submitting doctor profile:", data);
+      console.log("🔄 Submitting doctor profile with documents:", data);
 
-      // First update Clerk metadata
+      // Prepare document URLs for Supabase
+      const documentUrls = [
+        {
+          type: "aadhaar",
+          url: data.aadhaar_url,
+          uploaded_at: new Date().toISOString(),
+          verified: false,
+          is_drive_link: true
+        },
+        {
+          type: "pan",
+          url: data.pan_url,
+          uploaded_at: new Date().toISOString(),
+          verified: false,
+          is_drive_link: true
+        },
+        {
+          type: "medical_license",
+          url: data.medical_license_url,
+          uploaded_at: new Date().toISOString(),
+          verified: false,
+          is_drive_link: true
+        }
+      ];
+
+      // Update Supabase with doctor details and documents
+      const response = await fetch("/api/update-doctor-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role: "DOCTOR",
+          specialty: data.speciality,
+          experience: data.experience,
+          description: data.description,
+          aadhaar_number: data.aadhaar_number,
+          pan_number: data.pan_number,
+          medical_license_number: data.medical_license_number,
+          document_urls: documentUrls,
+          verification_status: "PENDING",
+        }),
+      });
+
+      const result = await handleApiResponse(response);
+      
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.error || `Failed to update doctor profile: ${response.status}`
+        );
+      }
+
+      console.log("✅ Doctor profile and documents updated successfully");
+
+      // Update Clerk metadata after successful Supabase update
       await user.update({
         unsafeMetadata: {
           role: "DOCTOR",
@@ -170,63 +197,12 @@ export default function RoleSelectorPage() {
 
       console.log("✅ Clerk metadata updated");
 
-      // Update Supabase with doctor details
-      const response = await fetch("/api/update-doctor-profile", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          role: "DOCTOR",
-          specialty: data.speciality,
-          experience: data.experience,
-          credential_url: data.credentialURL,
-          description: data.description,
-            verification_status: "PENDING", // Set to pending verification
-        }),
-      });
-
-      // Check if response is JSON
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        const text = await response.text();
-        console.error(
-          "Non-JSON response from doctor profile API:",
-          text.substring(0, 200)
-        );
-        throw new Error(
-          "Server returned non-JSON response. Please check the API endpoint."
-        );
-      }
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(
-          result.error || `Failed to update doctor profile: ${response.status}`
-        );
-      }
-
-      console.log("✅ Doctor profile updated successfully");
-
-      // Use router.replace for smoother navigation
+      // Redirect to verification page
       setRedirecting(true);
       router.replace("/Doctor-dashboard/verification");
     } catch (error) {
       console.error("❌ Error submitting doctor profile:", error);
       alert("Error submitting doctor profile. Please try again.");
-
-      // Revert Clerk metadata if update fails
-      try {
-        await user.update({
-          unsafeMetadata: {
-            role: "UNASSIGNED",
-            onboardingCompleted: false,
-          },
-        });
-      } catch (revertError) {
-        console.error("❌ Failed to revert Clerk metadata:", revertError);
-      }
     } finally {
       setIsLoading(false);
     }
@@ -314,7 +290,7 @@ export default function RoleSelectorPage() {
                 Complete Your Doctor Profile
               </CardTitle>
               <CardDescription>
-                Please provide your professional details for verification
+                Please provide your professional details and upload required documents for verification
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -367,29 +343,7 @@ export default function RoleSelectorPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="credentialURL">
-                    Link to Credential Document
-                  </Label>
-                  <Input
-                    id="credentialURL"
-                    type="url"
-                    placeholder="https://example.com/my-medical-degree.pdf"
-                    {...register("credentialURL")}
-                  />
-                  {errors.credentialURL && (
-                    <p className="text-sm font-medium text-red-500 mt-1">
-                      {errors.credentialURL.message}
-                    </p>
-                  )}
-                  <p className="text-sm text-muted-foreground">
-                    Please provide link to your medical degree or certification
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="description">
-                    Description of Your Services
-                  </Label>
+                  <Label htmlFor="description">Professional Description</Label>
                   <Textarea
                     id="description"
                     placeholder="Describe your expertise, services, and approach to patient care..."
@@ -401,6 +355,102 @@ export default function RoleSelectorPage() {
                       {errors.description.message}
                     </p>
                   )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="aadhaar_number">Aadhaar Number</Label>
+                  <Input
+                    id="aadhaar_number"
+                    placeholder="12-digit Aadhaar number"
+                    {...register("aadhaar_number")}
+                  />
+                  {errors.aadhaar_number && (
+                    <p className="text-sm font-medium text-red-500 mt-1">
+                      {errors.aadhaar_number.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="aadhaar_url">Aadhaar Document (Google Drive Link)</Label>
+                  <Input
+                    id="aadhaar_url"
+                    type="url"
+                    placeholder="https://drive.google.com/..."
+                    {...register("aadhaar_url")}
+                  />
+                  {errors.aadhaar_url && (
+                    <p className="text-sm font-medium text-red-500 mt-1">
+                      {errors.aadhaar_url.message}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Upload your Aadhaar card to Google Drive and share the link
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="pan_number">PAN Number</Label>
+                  <Input
+                    id="pan_number"
+                    placeholder="10-digit PAN number"
+                    {...register("pan_number")}
+                  />
+                  {errors.pan_number && (
+                    <p className="text-sm font-medium text-red-500 mt-1">
+                      {errors.pan_number.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="pan_url">PAN Document (Google Drive Link)</Label>
+                  <Input
+                    id="pan_url"
+                    type="url"
+                    placeholder="https://drive.google.com/..."
+                    {...register("pan_url")}
+                  />
+                  {errors.pan_url && (
+                    <p className="text-sm font-medium text-red-500 mt-1">
+                      {errors.pan_url.message}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Upload your PAN card to Google Drive and share the link
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="medical_license_number">Medical License Number</Label>
+                  <Input
+                    id="medical_license_number"
+                    placeholder="Medical license number"
+                    {...register("medical_license_number")}
+                  />
+                  {errors.medical_license_number && (
+                    <p className="text-sm font-medium text-red-500 mt-1">
+                      {errors.medical_license_number.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="medical_license_url">Medical License Document (Google Drive Link)</Label>
+                  <Input
+                    id="medical_license_url"
+                    type="url"
+                    placeholder="https://drive.google.com/..."
+                    {...register("medical_license_url")}
+                  />
+                  {errors.medical_license_url && (
+                    <p className="text-sm font-medium text-red-500 mt-1">
+                      {errors.medical_license_url.message}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Upload your medical license to Google Drive and share the link
+                  </p>
                 </div>
 
                 <div className="pt-2 flex items-center justify-between">
