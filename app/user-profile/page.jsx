@@ -23,14 +23,8 @@ import {
   User,
   Shield,
   FileText,
-  LinkIcon,
   ExternalLink,
   Stethoscope,
-  Briefcase,
-  FileText as FileTextIcon,
-  Upload,
-  Plus,
-  Info,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -63,13 +57,15 @@ const supabase = createClient(
 // Form validation schemas
 const personalInfoSchema = z.object({
   phone_number: z.string().optional(),
-  date_of_birth: z.string().optional(),
+  date_of_birth: z.string().optional().refine((val) => !val || !isNaN(Date.parse(val)), {
+    message: "Please enter a valid date"
+  }),
   address: z.string().optional(),
 });
 
 const doctorInfoSchema = z.object({
   specialty: z.string().optional(),
-  experience: z.number().optional(),
+  experience: z.number().optional().nullable(),
   description: z.string().optional(),
   medical_license_number: z.string().optional(),
 });
@@ -86,16 +82,11 @@ const documentSchema = z.object({
 export default function UserProfilePage() {
   const { user } = useUser();
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [userData, setUserData] = useState(null);
   const [message, setMessage] = useState({ type: "", text: "" });
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
-  const [newDocument, setNewDocument] = useState({
-    type: "",
-    description: "",
-    url: "",
-  });
 
   // Personal info form
   const {
@@ -103,6 +94,8 @@ export default function UserProfilePage() {
     handleSubmit: handlePersonalSubmit,
     formState: { errors: personalErrors },
     getValues: getPersonalValues,
+    setValue: setPersonalValue,
+    watch: watchPersonal,
   } = useForm({
     resolver: zodResolver(personalInfoSchema),
   });
@@ -129,12 +122,10 @@ export default function UserProfilePage() {
     resolver: zodResolver(documentSchema),
   });
 
-  // Add this useEffect to the UserProfilePage component
+  // Clean up form attributes
   useEffect(() => {
-    // Clean up any fdprocessedid attributes that might be added by extensions
     const cleanFormAttributes = () => {
       if (typeof window !== "undefined") {
-        // Remove fdprocessedid from all form elements
         document.querySelectorAll("[fdprocessedid]").forEach((el) => {
           el.removeAttribute("fdprocessedid");
         });
@@ -143,7 +134,6 @@ export default function UserProfilePage() {
 
     cleanFormAttributes();
 
-    // Also clean up on any DOM changes
     const observer = new MutationObserver(cleanFormAttributes);
     observer.observe(document.body, {
       subtree: true,
@@ -173,6 +163,20 @@ export default function UserProfilePage() {
       if (error) throw error;
 
       setUserData(data);
+      
+      // Pre-fill form values after data is loaded
+      if (data) {
+        // Personal info
+        if (data.phone_number) setPersonalValue("phone_number", data.phone_number);
+        if (data.date_of_birth) setPersonalValue("date_of_birth", data.date_of_birth.split('T')[0]); // Format date for input
+        if (data.address) setPersonalValue("address", data.address);
+        
+        // Doctor info
+        if (data.specialty) setDoctorValue("specialty", data.specialty);
+        if (data.experience) setDoctorValue("experience", data.experience);
+        if (data.description) setDoctorValue("description", data.description);
+        if (data.medical_license_number) setDoctorValue("medical_license_number", data.medical_license_number);
+      }
     } catch (error) {
       console.error("Error fetching user data:", error);
       setMessage({ type: "error", text: "Failed to load profile data" });
@@ -192,37 +196,49 @@ export default function UserProfilePage() {
 
       // Prepare update data
       const updateData = {
-        phone_number: personalData.phone_number,
-        date_of_birth: personalData.date_of_birth,
-        address: personalData.address,
         updated_at: new Date().toISOString(),
       };
 
+      // Only include fields that have values
+      if (personalData.phone_number) updateData.phone_number = personalData.phone_number;
+      if (personalData.date_of_birth) updateData.date_of_birth = personalData.date_of_birth;
+      if (personalData.address) updateData.address = personalData.address;
+
       // Add doctor-specific fields if user is a doctor
       if (isDoctor) {
-        updateData.specialty = doctorData.specialty;
-        updateData.experience = doctorData.experience;
-        updateData.description = doctorData.description;
-        updateData.medical_license_number = doctorData.medical_license_number;
+        if (doctorData.specialty) updateData.specialty = doctorData.specialty;
+        if (doctorData.experience) updateData.experience = doctorData.experience;
+        if (doctorData.description) updateData.description = doctorData.description;
+        if (doctorData.medical_license_number) updateData.medical_license_number = doctorData.medical_license_number;
       }
+
+      // Validate date format before sending
+      if (updateData.date_of_birth === "") {
+        delete updateData.date_of_birth; // Remove empty date
+      }
+
+      console.log("Updating user data:", updateData);
 
       const { error } = await supabase
         .from("users")
         .update(updateData)
         .eq("clerk_user_id", user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase error:", error);
+        throw error;
+      }
 
       setMessage({
         type: "success",
         text: "Profile information updated successfully!",
       });
-      fetchUserData();
+      fetchUserData(); // Refresh data
     } catch (error) {
-      console.log("Error updating profile info:", error);
+      console.error("Error updating profile info:", error);
       setMessage({
         type: "error",
-        text: "Failed to update profile information",
+        text: "Failed to update profile information: " + (error.message || "Unknown error"),
       });
     } finally {
       setSaving(false);
@@ -261,10 +277,13 @@ export default function UserProfilePage() {
         is_drive_link: true,
       };
 
+      const currentDocuments = userData.document_urls || [];
+      const updatedDocuments = [...currentDocuments, documentToAdd];
+
       const { error } = await supabase
         .from("users")
         .update({
-          document_urls: [...(userData.document_urls || []), documentToAdd],
+          document_urls: updatedDocuments,
           updated_at: new Date().toISOString(),
         })
         .eq("clerk_user_id", user.id);
@@ -292,7 +311,7 @@ export default function UserProfilePage() {
       "experience",
       "medical_license_number",
     ];
-    // Note: description is removed from the disabled fields list
+    
     if (doctorFields.includes(fieldName) && userData[fieldName]) {
       return true;
     }
@@ -325,7 +344,7 @@ export default function UserProfilePage() {
                 <span className="inline-block px-3 py-1 bg-emerald-900/30 text-emerald-400 rounded-full text-sm">
                   Role: {userData.role}
                 </span>
-                {userData.verification_status && (
+                {userData?.role=='DOCTOR' && userData.verification_status && (
                   <span
                     className={`inline-block px-3 py-1 ml-2 rounded-full text-sm ${
                       userData.verification_status === "VERIFIED"
@@ -342,7 +361,6 @@ export default function UserProfilePage() {
             )}
           </div>
           
-          {/* Single Save Button for all forms */}
           <Button 
             onClick={handleSaveAll} 
             disabled={saving} 
@@ -378,7 +396,7 @@ export default function UserProfilePage() {
               <CardDescription>Your basic personal details</CardDescription>
             </CardHeader>
             <CardContent>
-              <form className="space-y-4">
+              <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input
@@ -407,7 +425,6 @@ export default function UserProfilePage() {
                   <Input
                     id="date_of_birth"
                     type="date"
-                    defaultValue={userData?.date_of_birth || ""}
                     {...registerPersonal("date_of_birth")}
                   />
                   {personalErrors.date_of_birth && (
@@ -431,7 +448,7 @@ export default function UserProfilePage() {
                     </p>
                   )}
                 </div>
-              </form>
+              </div>
             </CardContent>
           </Card>
 
@@ -446,7 +463,7 @@ export default function UserProfilePage() {
                 <CardDescription>Your medical practice details</CardDescription>
               </CardHeader>
               <CardContent>
-                <form className="space-y-4">
+                <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="specialty">Medical Specialty</Label>
                     <Select
@@ -491,7 +508,10 @@ export default function UserProfilePage() {
                       type="number"
                       placeholder="e.g. 5"
                       defaultValue={userData?.experience || ""}
-                      {...registerDoctor("experience", { valueAsNumber: true })}
+                      {...registerDoctor("experience", { 
+                        valueAsNumber: true,
+                        setValueAs: (value) => value === "" ? null : parseInt(value)
+                      })}
                       disabled={isFieldDisabled("experience")}
                       className={
                         isFieldDisabled("experience") ? "bg-muted" : ""
@@ -519,7 +539,6 @@ export default function UserProfilePage() {
                       rows={4}
                       defaultValue={userData?.description || ""}
                       {...registerDoctor("description")}
-                      // Description is now always editable
                     />
                     {doctorErrors.description && (
                       <p className="text-sm text-red-500">
@@ -555,7 +574,7 @@ export default function UserProfilePage() {
                       </p>
                     )}
                   </div>
-                </form>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -576,7 +595,6 @@ export default function UserProfilePage() {
               <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
                 <DialogTrigger asChild>
                   <Button className="w-full">
-                    <Plus className="h-4 w-4 mr-2" />
                     Add Document
                   </Button>
                 </DialogTrigger>
@@ -596,7 +614,7 @@ export default function UserProfilePage() {
                       <Label htmlFor="type">Document Type</Label>
                       <Input
                         id="type"
-                        placeholder="e.g., Medical Degree, Certification, etc."
+                        placeholder={userData?.role=='PATIENT'?"e.g., Addhar card":"e.g., Medical Degree, Certification, etc."}
                         {...registerDocument("type")}
                       />
                       {documentErrors.type && (
@@ -639,9 +657,8 @@ export default function UserProfilePage() {
                         {saving ? (
                           <Loader2 className="h-4 w-4 animate-spin mr-2" />
                         ) : (
-                          <Upload className="h-4 w-4 mr-2" />
+                          "Add Document"
                         )}
-                        Add Document
                       </Button>
                     </DialogFooter>
                   </form>

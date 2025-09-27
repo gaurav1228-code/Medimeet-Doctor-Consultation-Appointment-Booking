@@ -9,6 +9,8 @@ import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import Pricing from "./Pricing";
 
+
+
 function Home() {
   return (
     <div className="bg-background">
@@ -118,7 +120,7 @@ function Home() {
           </div>
           <div>
             {/* Pricing table */}
-            <Pricing />
+            <Pricing/>
 
             <Card className="mt-12 bg-muted/20 border-emerald-900/40">
               <CardHeader>
@@ -225,7 +227,7 @@ function Home() {
                   variant="outline"
                   className="border-emerald-700/30 hover:bg-muted/80"
                 >
-                  <Link href={"/pricing"}>View Pricing</Link>
+                  <Link href={"/Pricing"}>View Pricing</Link>
                 </Button>
               </div>
             </CardContent>

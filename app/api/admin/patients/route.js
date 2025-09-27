@@ -1,4 +1,4 @@
-// app/api/admin/verified-doctors/route.js
+// app/api/admin/patients/route.js
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { auth } from '@clerk/nextjs/server';
@@ -27,22 +27,21 @@ export async function GET() {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    // Get verified doctors
-    const { data: doctors, error } = await supabase
+    // Get all patients
+    const { data: patients, error } = await supabase
       .from('users')
       .select('*')
-      .eq('role', 'DOCTOR')
-      .in('verification_status', ['VERIFIED', 'REJECTED'])
+      .eq('role', 'PATIENT')
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching verified doctors:', error);
+      console.error('Error fetching patients:', error);
       return NextResponse.json({ error: 'Database error' }, { status: 500 });
     }
 
-    return NextResponse.json({ doctors: doctors || [] });
+    return NextResponse.json({ patients: patients || [] });
   } catch (error) {
-    console.error('Error in verified doctors API:', error);
+    console.error('Error in patients API:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

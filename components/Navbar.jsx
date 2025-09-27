@@ -1,4 +1,4 @@
-// components/Navbar.jsx (Pure Server Component - No async needed)
+// components/Navbar.jsx
 import Link from "next/link";
 import {
   SignedIn,
@@ -11,6 +11,10 @@ import MobileMenu from "./MobileMenu";
 import { Button } from "./ui/button";
 
 export default function Navbar({ userData }) {
+  const isVerifiedDoctor = userData?.role === "DOCTOR" && userData?.verification_status === "VERIFIED";
+  const isPatient = userData?.role === "PATIENT";
+  const showMobileMenu = isPatient || isVerifiedDoctor;
+
   return (
     <div className="fixed top-0 w-full border-b bg-background/80 backdrop-blur-md z-10 supports-[backdrop-filter]:bg-background/60">
       <nav className="container mx-auto pl-6 pr-6 h-20 flex justify-between items-center">
@@ -34,8 +38,7 @@ export default function Navbar({ userData }) {
               </div>
             )}
 
-            {userData?.role === "PATIENT" && <MobileMenu />}
-            {(userData?.role === "DOCTOR" && userData?.verification_status === "VERIFIED") && <MobileMenu />}
+            {showMobileMenu && <MobileMenu />}
             <UserButton />
           </SignedIn>
 

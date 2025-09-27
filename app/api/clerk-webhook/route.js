@@ -96,17 +96,17 @@ async function handleUserCreated(userData) {
 
   console.log("👤 Creating user:", { id, email, name });
 
-  const { error } = await supabase.from("users").insert({
+  const { data: newUser, error } = await supabase.from("users").insert({
     clerk_user_id: id,
     email,
     name,
     image_url,
     role: USER_ROLES.UNASSIGNED,
-    credits: 0,
+    credits: 0, // Start with 0 credits initially
     verification_status: VERIFICATION_STATUS.PENDING,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-  });
+  }).select().single();
 
   if (error) {
     console.error("❌ Supabase insert error:", error);
@@ -114,6 +114,48 @@ async function handleUserCreated(userData) {
   }
 
   console.log("✅ User created in Supabase:", email);
+
+  // Now allocate initial credits separately
+  await allocateInitialCredits(newUser.id);
+}
+
+async function allocateInitialCredits(userId) {
+  try {
+    // Give 2 free credits to all new users
+    const { error: transactionError } = await supabase
+      .from("credit_transactions")
+      .insert([
+        {
+          user_id: userId, // Use the correct user ID
+          amount: 2,
+          type: TRANSACTION_TYPES.CREDIT_PURCHASE,
+          package_id: "welcome_bonus",
+        },
+      ]);
+
+    if (transactionError) {
+      console.error("❌ Error creating welcome credit transaction:", transactionError);
+      return;
+    }
+
+    // Update user credits
+    const { error: updateError } = await supabase
+      .from("users")
+      .update({
+        credits: 2,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId);
+
+    if (updateError) {
+      console.error("❌ Error updating user credits:", updateError);
+      return;
+    }
+
+    console.log("✅ Welcome credits allocated to user:", userId);
+  } catch (error) {
+    console.error("❌ Error in allocateInitialCredits:", error);
+  }
 }
 
 async function handleUserUpdated(userData) {
@@ -168,11 +210,11 @@ async function handleSubscriptionChange(subscriptionData) {
     return;
   }
 
-  // Get user from Supabase
+  // Get user from Supabase using clerk_user_id
   const { data: userData, error: userError } = await supabase
     .from("users")
     .select("*")
-    .eq("clerk_user_id", user_id)
+    .eq("clerk_user_id", user_id) // Find by Clerk user ID
     .single();
 
   if (userError || !userData) {
@@ -200,7 +242,7 @@ async function handleSubscriptionChange(subscriptionData) {
   const { data: existingTransaction } = await supabase
     .from("credit_transactions")
     .select("id")
-    .eq("user_id", userData.id)
+    .eq("user_id", userData.id) // Use the ID from users table
     .eq("package_id", plan)
     .gte("created_at", `${currentMonth}-01`)
     .limit(1);
@@ -210,12 +252,12 @@ async function handleSubscriptionChange(subscriptionData) {
     return;
   }
 
-  // Allocate credits
+  // Allocate credits using the correct user_id
   const { error: transactionError } = await supabase
     .from("credit_transactions")
     .insert([
       {
-        user_id: userData.id,
+        user_id: userData.id, // Use the ID from users table
         amount: creditsToAllocate,
         type: TRANSACTION_TYPES.CREDIT_PURCHASE,
         package_id: plan,
@@ -234,14 +276,15 @@ async function handleSubscriptionChange(subscriptionData) {
       credits: userData.credits + creditsToAllocate,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", userData.id);
+    .eq("id", userData.id) // Use the correct ID
+    .eq("clerk_user_id", user_id); // Double check with Clerk ID
 
   if (updateError) {
     console.error("❌ Error updating credits:", updateError);
     return;
   }
 
-  console.log(`✅ Allocated ${creditsToAllocate} credits for ${plan} plan`);
+  console.log(`✅ Allocated ${creditsToAllocate} credits for ${plan} plan to user ${userData.id}`);
 }
 
 async function handleSubscriptionDeleted(subscriptionData) {

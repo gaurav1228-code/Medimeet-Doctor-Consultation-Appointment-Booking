@@ -1,27 +1,45 @@
 // app/admin-dashboard/page.jsx
 import React from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Users } from "lucide-react";
+import { AlertCircle, Users, User } from "lucide-react";
 import PendingDoctors from './components/pending-doctors';
 import { VerifiedDoctors } from './components/verified-doctors';
+import { Patients } from './components/patients';
 import { getUserData } from '@/lib/server-actions';
 import { redirect } from 'next/navigation';
 import { USER_ROLES } from '@/lib/constants';
-import { getPendingDoctors, getVerifiedDoctors } from '@/lib/admin-data';
+import { getPendingDoctors, getVerifiedDoctors, getAllPatients } from '@/lib/admin-data';
 
 const AdminDashboard = async () => {
   // Check if user is admin
   const userData = await getUserData();
   
-  if (!userData || userData.role !== USER_ROLES.ADMIN) {
+  console.log('🔍 Admin Dashboard - User data:', userData);
+  
+  if (!userData) {
+    console.log('❌ No user data, redirecting to home');
     redirect('/');
   }
 
+  if (userData.role !== USER_ROLES.ADMIN) {
+    console.log('❌ User is not admin, redirecting to home. User role:', userData.role);
+    redirect('/');
+  }
+
+  console.log('✅ User is admin, loading dashboard...');
+
   // Fetch data directly from Supabase on the server
-  const [pendingDoctors, verifiedDoctors] = await Promise.all([
+  const [pendingDoctors, verifiedDoctors, patients] = await Promise.all([
     getPendingDoctors(),
-    getVerifiedDoctors()
+    getVerifiedDoctors(),
+    getAllPatients()
   ]);
+
+  console.log('📊 Data loaded:', {
+    pendingDoctors: pendingDoctors.length,
+    verifiedDoctors: verifiedDoctors.length,
+    patients: patients.length
+  });
 
   return (
     <div className="container mx-auto px-4 pt-26">
@@ -46,7 +64,12 @@ const AdminDashboard = async () => {
             <Users className="h-4 w-4 mr-2" />
             <span>All Doctors</span>
           </TabsTrigger>
+          <TabsTrigger value="patients" className="flex-1 md:flex md:items-center md:justify-start md:px-4 md:py-3 w-full">
+            <User className="h-4 w-4 mr-2" />
+            <span>All Patients</span>
+          </TabsTrigger>
         </TabsList>
+
         <div className="md:col-span-3">
         <TabsContent value="pending">
           <PendingDoctors doctors={pendingDoctors}/>
@@ -54,6 +77,10 @@ const AdminDashboard = async () => {
         
         <TabsContent value="doctors">
           <VerifiedDoctors doctors={verifiedDoctors}/>
+        </TabsContent>
+
+         <TabsContent value="patients">
+          <Patients patients={patients}/>
         </TabsContent>
         </div>
       </Tabs>

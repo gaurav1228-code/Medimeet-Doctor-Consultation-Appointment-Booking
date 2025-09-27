@@ -52,6 +52,15 @@ function MobileMenu() {
       </CollapsibleTrigger>
 
       <CollapsibleContent className="absolute right-0 top-14 w-48 mt-2 p-2 space-y-2 rounded-lg border bg-muted shadow-lg animate-in slide-in-from-top-7">
+        <Link href="/Patient-dashboard" onClick={() => setIsOpen(false)}>
+          <Button
+            variant="ghost"
+            className="w-full justify-start rounded-md hover:bg-green-50 hover:text-green-600"
+            suppressHydrationWarning
+          >
+            Home
+          </Button>
+        </Link>
         <Button
           variant="ghost"
           className="w-full justify-start rounded-md hover:bg-blue-50 hover:text-blue-600"

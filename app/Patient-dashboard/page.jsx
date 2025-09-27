@@ -1,11 +1,12 @@
 // app/Patient-dashboard/page.jsx
 import { getUserData } from "@/lib/server-actions";
 import { redirect } from "next/navigation";
-import Pricing from "@/components/Pricing";
+import Pricing from "@/app/Pricing/page";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Stethoscope, Calendar, CreditCard, User } from "lucide-react";
 import { APPOINTMENT_CREDIT_COST } from "@/lib/constants";
+import Link from "next/link";
 
 async function PatientDashboard() {
   const userData = await getUserData();
@@ -77,16 +78,20 @@ async function PatientDashboard() {
             Quick Actions
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="border-emerald-900/40 hover:border-emerald-800/40 hover:shadow-[0px_4px_20px_rgba(16,185,129,0.2)] transition-all duration-300 cursor-pointer">
-              <CardContent className="p-6 text-center">
-                <Stethoscope className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
-                <h3 className="font-semibold text-white mb-1">Find Doctors</h3>
-                <p className="text-sm text-muted-foreground">
-                  Browse available doctors
-                </p>
-              </CardContent>
-            </Card>
-
+            <Link href="/Patient-dashboard/speciality">
+              <Card className="border-emerald-900/40 hover:border-emerald-800/40 hover:shadow-[0px_4px_20px_rgba(16,185,129,0.2)] transition-all duration-300 cursor-pointer">
+                <CardContent className="p-6 text-center">
+                  <Stethoscope className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
+                  <h3 className="font-semibold text-white mb-1">
+                    Find Doctors
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Browse available doctors by speciality
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+            
             <Card className="border-emerald-900/40 hover:border-emerald-800/40 hover:shadow-[0px_4px_20px_rgba(16,185,129,0.2)] transition-all duration-300 cursor-pointer">
               <CardContent className="p-6 text-center">
                 <Calendar className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
@@ -98,7 +103,6 @@ async function PatientDashboard() {
                 </p>
               </CardContent>
             </Card>
-
             <Card className="border-emerald-900/40 hover:border-emerald-800/40 hover:shadow-[0px_4px_20px_rgba(16,185,129,0.2)] transition-all duration-300 cursor-pointer">
               <CardContent className="p-6 text-center">
                 <User className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
@@ -110,8 +114,8 @@ async function PatientDashboard() {
                 </p>
               </CardContent>
             </Card>
-
             <Card className="border-emerald-900/40 hover:border-emerald-800/40 hover:shadow-[0px_4px_20px_rgba(16,185,129,0.2)] transition-all duration-300 cursor-pointer">
+            <Link href={'/Pricing'}>
               <CardContent className="p-6 text-center">
                 <CreditCard className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
                 <h3 className="font-semibold text-white mb-1">Buy Credits</h3>
@@ -119,6 +123,7 @@ async function PatientDashboard() {
                   Purchase consultation credits
                 </p>
               </CardContent>
+            </Link>
             </Card>
           </div>
         </div>
@@ -163,14 +168,6 @@ async function PatientDashboard() {
             </CardContent>
           </Card>
         )}
-
-        {/* Pricing Section */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-semibold text-white mb-4">
-            Subscription Plans
-          </h2>
-          <Pricing />
-        </div>
       </div>
     </div>
   );
