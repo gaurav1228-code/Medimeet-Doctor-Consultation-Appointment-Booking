@@ -1,3 +1,4 @@
+// app/Doctor-dashboard/_components/availability-settings.jsx
 "use client";
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -14,66 +15,99 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { format } from "date-fns";
-const AvailabilitySettings = ({ slots }) => {
-  const [showForm, setShowForm] = useState(false);
 
-  const { loading, fn: submitSlots, data } = useFetch(setAvailablitySlots);
+const AvailabilitySettings = () => {
+  const [showForm, setShowForm] = useState(false);
+  const [slots, setSlots] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm({
-    defaultValues: {
-      startTime: "",
-      endTime: "",
-    },
-  });
+    reset,
+    watch,
+  } = useForm();
 
-  function createLocalDateFromTime(timeStr) {
-    const [hours, minutes] = timeStr.split(":").map(Number);
-    const now = new Date();
-    const date = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-      hours,
-      minutes
-    );
-    return date;
-  }
+  // Fetch current availability
+  const fetchSlots = async () => {
+    try {
+      setFetching(true);
+      console.log('🔄 Fetching availability slots...');
+      
+      const response = await fetch('/api/doctor/availability');
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch availability');
+      }
+
+      console.log('✅ Slots fetched:', result.slots);
+      setSlots(result.slots || []);
+    } catch (error) {
+      console.error('❌ Error fetching slots:', error);
+      toast.error('Failed to load availability');
+    } finally {
+      setFetching(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSlots();
+  }, []);
 
   const onSubmit = async (data) => {
     if (loading) return;
 
-    const formData = new FormData();
+    console.log('🚀 Form submitted:', data);
+    setLoading(true);
 
-    const today = new Date().toISOString().split("T")[0];
+    try {
+      // Create proper time strings in UTC
+      const startTimeUTC = new Date();
+      const [startHours, startMinutes] = data.startTime.split(':').map(Number);
+      startTimeUTC.setUTCHours(startHours, startMinutes, 0, 0);
 
-    // Create date objects
-    const startDate = createLocalDateFromTime(data.startTime);
-    const endDate = createLocalDateFromTime(data.endTime);
+      const endTimeUTC = new Date();
+      const [endHours, endMinutes] = data.endTime.split(':').map(Number);
+      endTimeUTC.setUTCHours(endHours, endMinutes, 0, 0);
 
-    if (startDate >= endDate) {
-      toast.error("End time must be after start time");
-      return;
+      const formData = new FormData();
+      formData.append('startTime', startTimeUTC.toISOString());
+      formData.append('endTime', endTimeUTC.toISOString());
+
+      console.log('📤 Sending to API:', {
+        startTime: startTimeUTC.toISOString(),
+        endTime: endTimeUTC.toISOString()
+      });
+
+      const response = await fetch('/api/doctor/availability', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to save availability');
+      }
+
+      console.log('✅ API response:', result);
+      toast.success(`Availability set! Created ${result.slotsCount} time slots.`);
+      
+      setShowForm(false);
+      reset();
+      await fetchSlots(); // Refresh the list
+      
+    } catch (error) {
+      console.error('❌ Error saving availability:', error);
+      toast.error(error.message || 'Failed to save availability');
+    } finally {
+      setLoading(false);
     }
-
-    // Add to form data
-    formData.append("startTime", startDate.toISOString());
-    formData.append("endTime", endDate.toISOString());
-
-    await submitSlots(formData);
   };
 
-  useEffect(() => {
-    if (data && data?.success) {
-      setShowForm(false);
-      toast.success("Availability slots updated successfully");
-    }
-  }, [data]);
-
-  // Format time string for display
   const formatTimeString = (dateString) => {
     try {
       return format(new Date(dateString), "h:mm a");
@@ -81,6 +115,19 @@ const AvailabilitySettings = ({ slots }) => {
       return "Invalid time";
     }
   };
+
+  if (fetching) {
+    return (
+      <Card className="border-emerald-900/20">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-emerald-400 mr-2" />
+            <span>Loading availability...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="border-emerald-900/20">
@@ -100,9 +147,9 @@ const AvailabilitySettings = ({ slots }) => {
               <h3 className="text-lg font-medium text-white mb-3">
                 Current Availability
               </h3>
-              {slots.length == 0 ? (
+              {slots.length === 0 ? (
                 <p className="text-muted-foreground">
-                  You haven&apos;t set any availability slots yet. Add your
+                  You haven't set any availability slots yet. Add your
                   availability to start accepting appointments.
                 </p>
               ) : (
@@ -117,11 +164,11 @@ const AvailabilitySettings = ({ slots }) => {
                       </div>
                       <div>
                         <p className="text-white font-medium">
-                          {formatTimeString(slot.startTime)} -{" "}
-                          {formatTimeString(slot.endTime)}
+                          {formatTimeString(slot.start_time)} -{" "}
+                          {formatTimeString(slot.end_time)}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {slot.appointment ? "Booked" : "Available"}
+                          {slot.status} • {format(new Date(slot.start_time), "MMM d, yyyy")}
                         </p>
                       </div>
                     </div>
@@ -142,7 +189,8 @@ const AvailabilitySettings = ({ slots }) => {
             className="space-y-4 p-4 border border-emerald-900/20 rounded-md"
             onSubmit={handleSubmit(onSubmit)}
           >
-            <h3 className="mb-2 text-lg font-medium text-white"></h3>
+            <h3 className="text-lg font-medium text-white">Add Availability</h3>
+            
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="startTime">Start Time</Label>
@@ -161,13 +209,20 @@ const AvailabilitySettings = ({ slots }) => {
                 )}
               </div>
 
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="endTime">End Time</Label>
                 <Input
                   id="endTime"
                   type="time"
                   {...register("endTime", {
                     required: "End time is required",
+                    validate: (value) => {
+                      const start = watch("startTime");
+                      if (start && value && start >= value) {
+                        return "End time must be after start time";
+                      }
+                      return true;
+                    }
                   })}
                   className="bg-background border-emerald-900/20"
                 />
@@ -183,7 +238,10 @@ const AvailabilitySettings = ({ slots }) => {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setShowForm(false)}
+                onClick={() => {
+                  setShowForm(false);
+                  reset();
+                }}
                 disabled={loading}
                 className="border-emerald-900/30"
               >
@@ -206,6 +264,7 @@ const AvailabilitySettings = ({ slots }) => {
             </div>
           </form>
         )}
+        
         <div className="mt-6 p-4 bg-muted/10 border border-emerald-900/10 rounded-md">
           <h4 className="font-medium text-white mb-2 flex items-center">
             <AlertCircle className="h-4 w-4 mr-2 text-emerald-400" />
@@ -213,9 +272,8 @@ const AvailabilitySettings = ({ slots }) => {
           </h4>
           <p className="text-muted-foreground text-sm">
             Setting your daily availability allows patients to book appointments
-            during those hours. The same availability applies to all days. You
-            can update your availability at any time, but existing booked
-            appointments will not be affected.
+            during those hours. The same availability applies to all days for the next 3 days.
+            You can update your availability at any time.
           </p>
         </div>
       </CardContent>
