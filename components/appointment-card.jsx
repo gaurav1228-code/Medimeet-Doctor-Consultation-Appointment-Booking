@@ -13,6 +13,27 @@ export function AppointmentCard({ appointment, userRole, refetchAppointments }) 
   const [loading, setLoading] = useState(false);
   const [action, setAction] = useState(null);
 
+  const handleJoinVideo = () => {
+    const roomId = `appointment-${appointment.id}`;
+    const url = `/video-call?roomId=${roomId}&appointmentId=${appointment.id}`;
+    const win = window.open(
+      url,
+      `video-call-${appointment.id}`,
+      "width=1200,height=800,menubar=no,toolbar=no,location=no,status=no"
+    );
+    if (!win) {
+      // Fallback if popup blocked
+      window.location.href = url;
+    }
+  };
+
+  const isJoinWindowOpen = () => {
+    const now = new Date();
+    const start = new Date(appointment.start_time);
+    const end = new Date(appointment.end_time);
+    return (start.getTime() - now.getTime() <= 30 * 60 * 1000) && now <= end; // 30m before start until end
+  };
+
   const handleStatusUpdate = async (newStatus) => {
     if (loading) return;
     
@@ -82,38 +103,52 @@ export function AppointmentCard({ appointment, userRole, refetchAppointments }) 
             )}
           </div>
 
-          {userRole === 'DOCTOR' && appointment.status === 'SCHEDULED' && (
-            <div className="flex gap-2">
+          <div className="flex gap-2">
+            {appointment.status === 'SCHEDULED' && (
               <Button
                 size="sm"
-                onClick={() => handleStatusUpdate('COMPLETED')}
-                disabled={loading}
-                className="bg-green-600 hover:bg-green-700"
+                onClick={handleJoinVideo}
+                className="bg-emerald-600 hover:bg-emerald-700"
+                disabled={!isJoinWindowOpen()}
               >
-                {loading && action === 'COMPLETED' ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Check className="h-4 w-4" />
-                )}
-                Complete
+                <Video className="h-4 w-4 mr-1" />
+                {isJoinWindowOpen() ? 'Join Video Room' : 'Available 30m before start'}
               </Button>
-              
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleStatusUpdate('CANCELLED')}
-                disabled={loading}
-                className="border-red-900/30 text-red-400 hover:bg-red-900/10"
-              >
-                {loading && action === 'CANCELLED' ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <X className="h-4 w-4" />
-                )}
-                Cancel
-              </Button>
-            </div>
-          )}
+            )}
+
+            {userRole === 'DOCTOR' && appointment.status === 'SCHEDULED' && (
+              <>
+                <Button
+                  size="sm"
+                  onClick={() => handleStatusUpdate('COMPLETED')}
+                  disabled={loading}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {loading && action === 'COMPLETED' ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Check className="h-4 w-4" />
+                  )}
+                  Complete
+                </Button>
+                
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleStatusUpdate('CANCELLED')}
+                  disabled={loading}
+                  className="border-red-900/30 text-red-400 hover:bg-red-900/10"
+                >
+                  {loading && action === 'CANCELLED' ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <X className="h-4 w-4" />
+                  )}
+                  Cancel
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
