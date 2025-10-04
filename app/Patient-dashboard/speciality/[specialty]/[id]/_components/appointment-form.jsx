@@ -1,4 +1,4 @@
-// app/Patient-dashboard/speciality/[specialty]/[id]/_components/appointment-form.jsx
+// app/Patient-dashboard/speciality/[specialty]/[id]/_components/appointment-form.jsx - UPDATED
 "use client";
 
 import { useState, useEffect } from "react";
@@ -7,41 +7,42 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { Loader2, Clock, ArrowLeft, Calendar, CreditCard } from "lucide-react";
-
 import { toast } from "sonner";
 import useFetch from "@/hooks/use-fetch";
 import { bookAppointment } from "@/lib/actions/appointments";
+import { useRouter } from "next/navigation";
 
 export function AppointmentForm({ doctorId, slot, onBack, onComplete }) {
   const [description, setDescription] = useState("");
+  const router = useRouter();
 
-  // Use the useFetch hook to handle loading, data, and error states
   const { loading, data, fn: submitBooking } = useFetch(bookAppointment);
 
-  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // Create form data
+    
     const formData = new FormData();
     formData.append("doctorId", doctorId);
     formData.append("startTime", slot.startTime);
     formData.append("endTime", slot.endTime);
     formData.append("description", description);
 
-    // Submit booking using the function from useFetch
     await submitBooking(formData);
   };
 
-  // Handle response after booking attempt
   useEffect(() => {
     if (data) {
       if (data.success) {
-        toast.success("Appointment booked successfully!");
-        onComplete();
+        toast.success(data.message || "Appointment booked successfully!");
+        // Redirect to appointments page
+        setTimeout(() => {
+          router.push("/Patient-dashboard/Yourappointments");
+        }, 1500);
+      } else {
+        toast.error(data.error || "Failed to book appointment");
       }
     }
-  }, [data]);
+  }, [data, router]);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -76,8 +77,7 @@ export function AppointmentForm({ doctorId, slot, onBack, onComplete }) {
           className="bg-background border-emerald-900/20 h-32"
         />
         <p className="text-sm text-muted-foreground">
-          This information will be shared with the doctor before your
-          appointment.
+          This information will be shared with the doctor before your appointment.
         </p>
       </div>
 

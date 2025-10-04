@@ -25,10 +25,17 @@ import {
 } from "lucide-react";
 import { SlotPicker } from './slot-picker';
 import { AppointmentForm } from './appointment-form';
+import { redirect } from "next/navigation";
 
 export default function DoctorProfile({ doctor, availableDays }) {
   const [showBooking, setShowBooking] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
+
+  console.log('🔄 DoctorProfile rendered:', {
+    doctorId: doctor?.id,
+    availableDaysCount: availableDays?.length,
+    totalSlots: availableDays?.reduce((total, day) => total + day.slots.length, 0)
+  });
 
   // Calculate total available slots
   const totalSlots = availableDays?.reduce(
@@ -54,7 +61,7 @@ export default function DoctorProfile({ doctor, availableDays }) {
 
   const handleBookingComplete = () => {
     // Redirect to appointments page or show success message
-    window.location.href = "/Patient-dashboard/appointments";
+   redirect("/Patient-dashboard");
   };
 
   return (

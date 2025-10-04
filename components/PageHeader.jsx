@@ -15,21 +15,24 @@ import { Button } from "./ui/button";
 export function PageHeader({
   icon,
   title,
-  backLink = "/",
+  backLink,
   backLabel = "Back to Home",
+  showBackButton = true,   // new prop
 }) {
   return (
     <div className="flex flex-col justify-between gap-5 mb-8">
-      <Link href={backLink}>
-        <Button
-          variant="outline"
-          size="sm"
-          className="mb-2 border-emerald-900/30"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          {backLabel}
-        </Button>
-      </Link>
+      {showBackButton && backLink && (
+        <Link href={backLink}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mb-2 border-emerald-900/30"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            {backLabel}
+          </Button>
+        </Link>
+      )}
       <div className="flex items-end gap-2">
         {icon && (
           <div className="text-emerald-400">
@@ -43,3 +46,4 @@ export function PageHeader({
     </div>
   );
 }
+

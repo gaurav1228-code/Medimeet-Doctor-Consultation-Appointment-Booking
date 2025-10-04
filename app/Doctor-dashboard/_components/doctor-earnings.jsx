@@ -29,29 +29,45 @@ import { format } from "date-fns";
 
 import useFetch from "@/hooks/use-fetch";
 import { toast } from "sonner";
-import { requestPayout } from "@/lib/actions/doctor-earnings";
+import { getDoctorEarnings } from "@/lib/actions/doctor-earnings";
+import { requestPayout } from "@/lib/actions/payout";
 
-export function DoctorEarnings({ earnings = {}, payouts = [] }) {
+export function DoctorEarnings() {
   const [showPayoutDialog, setShowPayoutDialog] = useState(false);
   const [paypalEmail, setPaypalEmail] = useState("");
-
-  const {
-    thisMonthEarnings = 0,
-    completedAppointments = 0,
-    averageEarningsPerMonth = 0,
-    availableCredits = 0,
-    availablePayout = 0,
-  } = earnings;
-
+  const [earningsData, setEarningsData] = useState(null);
+  const [payouts, setPayouts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // Custom hook for payout request
-  const { loading, data, fn: submitPayoutRequest } = useFetch(requestPayout);
+  const { loading: payoutLoading, data: payoutData, fn: submitPayoutRequest } = useFetch(requestPayout);
 
-  // Check if there's any pending payout
-  const pendingPayout = payouts.find(
-    (payout) => payout.status === "PROCESSING"
-  );
+  // Fetch earnings and payouts data
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch earnings data
+        const earningsResponse = await getDoctorEarnings();
+        if (earningsResponse.success) {
+          setEarningsData(earningsResponse.earnings);
+          setPayouts(earningsResponse.payouts || []);
+        } else {
+          toast.error("Failed to load earnings data");
+        }
+      } catch (error) {
+        console.error("Error fetching earnings data:", error);
+        toast.error("Failed to load earnings data");
+      } finally {
+        setLoading(false);
+      }
+    };
 
+    fetchData();
+  }, []);
+
+  // Handle payout request
   const handlePayoutRequest = async (e) => {
     e.preventDefault();
 
@@ -66,15 +82,68 @@ export function DoctorEarnings({ earnings = {}, payouts = [] }) {
     await submitPayoutRequest(formData);
   };
 
+  // Handle successful payout request
   useEffect(() => {
-    if (data?.success) {
+    if (payoutData?.success) {
       setShowPayoutDialog(false);
       setPaypalEmail("");
       toast.success("Payout request submitted successfully!");
+      
+      // Refresh earnings data
+      const refreshData = async () => {
+        const earningsResponse = await getDoctorEarnings();
+        if (earningsResponse.success) {
+          setEarningsData(earningsResponse.earnings);
+          setPayouts(earningsResponse.payouts || []);
+        }
+      };
+      refreshData();
     }
-  }, [data]);
+  }, [payoutData]);
+
+  // Use default values if data is still loading
+  const {
+    thisMonthEarnings = 0,
+    completedAppointments = 0,
+    averageEarningsPerMonth = 0,
+    availableCredits = 0,
+    availablePayout = 0,
+  } = earningsData || {};
 
   const platformFee = availableCredits * 2; // $2 per credit
+  const pendingPayout = payouts.find(payout => payout.status === "PENDING");
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[1, 2, 3, 4].map((item) => (
+            <Card key={item} className="border-emerald-900/20">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="h-4 bg-muted/20 rounded w-24 mb-2"></div>
+                    <div className="h-8 bg-muted/20 rounded w-16"></div>
+                  </div>
+                  <div className="bg-muted/20 rounded-full p-3">
+                    <div className="h-6 w-6 bg-muted/30 rounded"></div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card className="border-emerald-900/20">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-emerald-400 mr-2" />
+              <span>Loading earnings data...</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -173,7 +242,7 @@ export function DoctorEarnings({ earnings = {}, payouts = [] }) {
                   variant="outline"
                   className="bg-amber-900/20 border-amber-900/30 text-amber-400"
                 >
-                  PROCESSING
+                  PENDING
                 </Badge>
               ) : (
                 <Badge
@@ -197,22 +266,21 @@ export function DoctorEarnings({ earnings = {}, payouts = [] }) {
                   <div>
                     <p className="text-muted-foreground">Pending Amount</p>
                     <p className="text-white font-medium">
-                      ${pendingPayout.netAmount.toFixed(2)}
+                      ${pendingPayout.net_amount.toFixed(2)}
                     </p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">PayPal Email</p>
                     <p className="text-white font-medium text-xs">
-                      {pendingPayout.paypalEmail}
+                      {pendingPayout.paypal_email}
                     </p>
                   </div>
                 </div>
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription className="text-sm">
-                    Your payout request is being processed. You'll receive the
-                    payment once an admin approves it. Your credits will be
-                    deducted after processing.
+                    Your payout request is pending approval. You'll receive the
+                    payment once an admin approves it.
                   </AlertDescription>
                 </Alert>
               </div>
@@ -278,22 +346,24 @@ export function DoctorEarnings({ earnings = {}, payouts = [] }) {
                   >
                     <div>
                       <p className="text-white font-medium">
-                        {format(new Date(payout.createdAt), "MMM d, yyyy")}
+                        {format(new Date(payout.created_at), "MMM d, yyyy")}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {payout.credits} credits • $
-                        {payout.netAmount.toFixed(2)}
+                        {payout.net_amount.toFixed(2)}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {payout.paypalEmail}
+                        {payout.paypal_email}
                       </p>
                     </div>
                     <Badge
                       variant="outline"
                       className={
-                        payout.status === "PROCESSED"
+                        payout.status === "APPROVED"
                           ? "bg-emerald-900/20 border-emerald-900/30 text-emerald-400"
-                          : "bg-amber-900/20 border-amber-900/30 text-amber-400"
+                          : payout.status === "PENDING"
+                          ? "bg-amber-900/20 border-amber-900/30 text-amber-400"
+                          : "bg-red-900/20 border-red-900/30 text-red-400"
                       }
                     >
                       {payout.status}
@@ -376,17 +446,17 @@ export function DoctorEarnings({ earnings = {}, payouts = [] }) {
                 type="button"
                 variant="outline"
                 onClick={() => setShowPayoutDialog(false)}
-                disabled={loading}
+                disabled={payoutLoading}
                 className="border-emerald-900/30"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                disabled={loading}
+                disabled={payoutLoading}
                 className="bg-emerald-600 hover:bg-emerald-700"
               >
-                {loading ? (
+                {payoutLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Requesting...

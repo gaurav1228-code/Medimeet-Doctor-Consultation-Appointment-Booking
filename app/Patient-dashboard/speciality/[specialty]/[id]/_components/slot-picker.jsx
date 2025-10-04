@@ -69,7 +69,7 @@ export function SlotPicker({ days, onSelectSlot }) {
                 <h3 className="text-lg font-medium text-white mb-2">
                   {day.displayDate}
                 </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
                   {day.slots.map((slot) => (
                     <Card
                       key={slot.startTime}
@@ -80,9 +80,9 @@ export function SlotPicker({ days, onSelectSlot }) {
                       }`}
                       onClick={() => handleSlotSelect(slot)}
                     >
-                      <CardContent className="p-3 flex items-center">
+                      <CardContent className="flex text-[16] justify-center items-center">
                         <Clock
-                          className={`h-4 w-4 mr-2 ${
+                          className={`h-5 w-5 mr-2 ${
                             selectedSlot?.startTime === slot.startTime
                               ? "text-emerald-400"
                               : "text-muted-foreground"
