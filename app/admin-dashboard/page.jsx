@@ -13,6 +13,8 @@ import {
   getVerifiedDoctors,
   getAllPatients,
 } from "@/lib/admin-data";
+import { PendingPayouts } from "./components/pending-payouts";
+import { getPendingPayouts } from "@/lib/actions/admin";
 
 const AdminDashboard = async () => {
   // Check if user is admin
@@ -36,16 +38,20 @@ const AdminDashboard = async () => {
   console.log("✅ User is admin, loading dashboard...");
 
   // Fetch data directly from Supabase on the server
-  const [pendingDoctors, verifiedDoctors, patients] = await Promise.all([
-    getPendingDoctors(),
-    getVerifiedDoctors(),
-    getAllPatients(),
-  ]);
+ const [pendingDoctors, verifiedDoctors, patients, pendingPayoutsResult] = await Promise.all([
+  getPendingDoctors(),
+  getVerifiedDoctors(),
+  getAllPatients(),
+  getPendingPayouts(),
+]);
+
+  const pendingPayouts = pendingPayoutsResult.success ? pendingPayoutsResult.payouts : [];
 
   console.log("📊 Data loaded:", {
     pendingDoctors: pendingDoctors.length,
     verifiedDoctors: verifiedDoctors.length,
     patients: patients.length,
+    pendingPayouts: pendingPayouts.length,
   });
 
   return (
@@ -59,7 +65,7 @@ const AdminDashboard = async () => {
         defaultValue="pending"
         className="grid grid-cols-1 md:grid-cols-4 gap-6"
       >
-        <TabsList className="md:col-span-1 bg-muted/30 border h-14 md:h-40 flex sm:flex-row md:flex-col w-full p-2 md:p-1 rounded-md md:space-y-2 sm:space-x-2 md:space-x-0">
+        <TabsList className="md:col-span-1 bg-muted/30 border h-24 md:h-60 flex sm:flex-row md:flex-col w-full p-2 md:p-1 rounded-md md:space-y-2 sm:space-x-2 md:space-x-0">
           <TabsTrigger
             value="pending"
             className="flex-1 md:flex md:items-center md:justify-start md:px-4 md:py-3 w-full"
@@ -104,7 +110,7 @@ const AdminDashboard = async () => {
           </TabsContent>
 
           <TabsContent value="payouts" className="border-none p-0">
-            <PendingPayouts payouts={pendingPayoutsData.payouts || []} />
+            <PendingPayouts payouts={pendingPayouts} />
           </TabsContent>
         </div>
       </Tabs>

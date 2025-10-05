@@ -61,13 +61,16 @@ function MobileMenu() {
             Home
           </Button>
         </Link>
+        <Link href="/Patient-dashboard/Yourappointments" onClick={() => setIsOpen(false)}>
         <Button
           variant="ghost"
-          className="w-full justify-start rounded-md hover:bg-blue-50 hover:text-blue-600"
+          className="w-full justify-start rounded-md hover:bg-blue-50 hover:text-green-600"
           suppressHydrationWarning
         >
           My Appointments
         </Button>
+        </Link>
+        <Link href="/Patient-dashboard/medical-history" onClick={() => setIsOpen(false)}>
         <Button
           variant="ghost"
           className="w-full justify-start rounded-md hover:bg-green-50 hover:text-green-600"
@@ -75,6 +78,7 @@ function MobileMenu() {
         >
           Medical History
         </Button>
+        </Link>
         <Link href="/user-profile" onClick={() => setIsOpen(false)}>
           <Button
             variant="ghost"

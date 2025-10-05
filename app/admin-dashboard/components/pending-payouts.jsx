@@ -1,4 +1,4 @@
-// app/admin-dashboard/components/pending-payouts.jsx
+// app/admin-dashboard/components/pending-payouts.jsx - UPDATED
 "use client";
 
 import { useState, useEffect } from "react";
@@ -30,10 +30,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { approvePayout } from "@/actions/admin";
+
 import useFetch from "@/hooks/use-fetch";
 import { toast } from "sonner";
 import { BarLoader } from "react-spinners";
+import { approvePayout } from "@/lib/actions/admin";
 
 export function PendingPayouts({ payouts }) {
   const [selectedPayout, setSelectedPayout] = useState(null);
@@ -117,22 +118,19 @@ export function PendingPayouts({ payouts }) {
                               <DollarSign className="h-4 w-4 mr-1 text-emerald-400" />
                               <span>
                                 {payout.credits} credits • $
-                                {payout.netAmount.toFixed(2)}
+                                {payout.net_amount.toFixed(2)}
                               </span>
                             </div>
                             <div className="flex items-center">
                               <Mail className="h-4 w-4 mr-1 text-emerald-400" />
                               <span className="text-xs">
-                                {payout.paypalEmail}
+                                {payout.paypal_email}
                               </span>
                             </div>
                           </div>
                           <p className="text-xs text-muted-foreground mt-1">
                             Requested{" "}
-                            {format(
-                              new Date(payout.createdAt),
-                              "MMM d, yyyy 'at' h:mm a"
-                            )}
+                            {format(new Date(payout.created_at), "MMM d, yyyy 'at' h:mm a")}
                           </p>
                         </div>
                       </div>
@@ -253,20 +251,20 @@ export function PendingPayouts({ payouts }) {
                       Platform fee (2 USD/credit):
                     </span>
                     <span className="text-white">
-                      -${selectedPayout.platformFee.toFixed(2)}
+                      ${selectedPayout.platform_fee.toFixed(2)}
                     </span>
                   </div>
                   <div className="border-t border-emerald-900/20 pt-3 flex justify-between font-medium">
                     <span className="text-white">Net payout:</span>
                     <span className="text-emerald-400">
-                      ${selectedPayout.netAmount.toFixed(2)}
+                      ${selectedPayout.net_amount.toFixed(2)}
                     </span>
                   </div>
                   <div className="border-t border-emerald-900/20 pt-3">
                     <p className="text-sm font-medium text-muted-foreground">
                       PayPal Email
                     </p>
-                    <p className="text-white">{selectedPayout.paypalEmail}</p>
+                    <p className="text-white">{selectedPayout.paypal_email}</p>
                   </div>
                 </div>
               </div>
@@ -334,7 +332,7 @@ export function PendingPayouts({ payouts }) {
                       Deduct {selectedPayout.credits} credits from Dr.{" "}
                       {selectedPayout.doctor.name}'s account
                     </li>
-                    <li>Mark the payout as PROCESSED</li>
+                    <li>Mark the payout as APPROVED</li>
                     <li>This action cannot be undone</li>
                   </ul>
                 </AlertDescription>
@@ -350,13 +348,13 @@ export function PendingPayouts({ payouts }) {
                 <div className="flex justify-between mb-2">
                   <span className="text-muted-foreground">Amount to pay:</span>
                   <span className="text-emerald-400 font-medium">
-                    ${selectedPayout.netAmount.toFixed(2)}
+                    ${selectedPayout.net_amount.toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">PayPal:</span>
                   <span className="text-white text-sm">
-                    {selectedPayout.paypalEmail}
+                    {selectedPayout.paypal_email}
                   </span>
                 </div>
               </div>

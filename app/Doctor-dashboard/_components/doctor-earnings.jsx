@@ -1,4 +1,4 @@
-// app/Doctor-dashboard/_components/doctor-earnings.jsx
+// app/Doctor-dashboard/_components/doctor-earnings.jsx - UPDATED
 "use client";
 
 import { useState, useEffect } from "react";
@@ -14,6 +14,7 @@ import {
   Loader2,
   AlertCircle,
   Coins,
+  History,
 } from "lucide-react";
 import {
   Dialog,
@@ -25,12 +26,13 @@ import {
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 
 import useFetch from "@/hooks/use-fetch";
 import { toast } from "sonner";
 import { getDoctorEarnings } from "@/lib/actions/doctor-earnings";
-import { requestPayout } from "@/lib/actions/payout";
+import { requestPayout, getDoctorPayouts } from "@/lib/actions/payout";
 
 export function DoctorEarnings() {
   const [showPayoutDialog, setShowPayoutDialog] = useState(false);
@@ -38,32 +40,42 @@ export function DoctorEarnings() {
   const [earningsData, setEarningsData] = useState(null);
   const [payouts, setPayouts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("overview");
 
-  // Custom hook for payout request
+  // Custom hooks for API calls
   const { loading: payoutLoading, data: payoutData, fn: submitPayoutRequest } = useFetch(requestPayout);
+  const { loading: payoutsLoading, fn: fetchPayouts } = useFetch(getDoctorPayouts);
 
   // Fetch earnings and payouts data
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        
-        // Fetch earnings data
-        const earningsResponse = await getDoctorEarnings();
-        if (earningsResponse.success) {
-          setEarningsData(earningsResponse.earnings);
-          setPayouts(earningsResponse.payouts || []);
-        } else {
-          toast.error("Failed to load earnings data");
-        }
-      } catch (error) {
-        console.error("Error fetching earnings data:", error);
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch earnings data
+      const earningsResponse = await getDoctorEarnings();
+      if (earningsResponse.success) {
+        setEarningsData(earningsResponse.earnings);
+        setPayouts(earningsResponse.payouts || []);
+      } else {
         toast.error("Failed to load earnings data");
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (error) {
+      console.error("Error fetching earnings data:", error);
+      toast.error("Failed to load earnings data");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // Fetch payout history separately
+  const fetchPayoutHistory = async () => {
+    const result = await fetchPayouts();
+    if (result.success) {
+      setPayouts(result.payouts || []);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, []);
 
@@ -89,15 +101,11 @@ export function DoctorEarnings() {
       setPaypalEmail("");
       toast.success("Payout request submitted successfully!");
       
-      // Refresh earnings data
-      const refreshData = async () => {
-        const earningsResponse = await getDoctorEarnings();
-        if (earningsResponse.success) {
-          setEarningsData(earningsResponse.earnings);
-          setPayouts(earningsResponse.payouts || []);
-        }
-      };
-      refreshData();
+      // Refresh data
+      fetchData();
+      fetchPayoutHistory();
+    } else if (payoutData?.error) {
+      toast.error(payoutData.error);
     }
   }, [payoutData]);
 
@@ -108,6 +116,7 @@ export function DoctorEarnings() {
     averageEarningsPerMonth = 0,
     availableCredits = 0,
     availablePayout = 0,
+    totalEarnings = 0,
   } = earningsData || {};
 
   const platformFee = availableCredits * 2; // $2 per credit
@@ -148,7 +157,7 @@ export function DoctorEarnings() {
   return (
     <div className="space-y-6">
       {/* Earnings Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border-emerald-900/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -160,7 +169,7 @@ export function DoctorEarnings() {
                   {availableCredits}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  ${availablePayout.toFixed(2)} available for payout
+                  ${availablePayout.toFixed(2)} available
                 </p>
               </div>
               <div className="bg-emerald-900/20 p-3 rounded-full">
@@ -178,6 +187,9 @@ export function DoctorEarnings() {
                 <p className="text-3xl font-bold text-white">
                   ${thisMonthEarnings.toFixed(2)}
                 </p>
+                <p className="text-xs text-muted-foreground">
+                  {completedAppointments} appointments
+                </p>
               </div>
               <div className="bg-emerald-900/20 p-3 rounded-full">
                 <TrendingUp className="h-6 w-6 text-emerald-400" />
@@ -191,15 +203,15 @@ export function DoctorEarnings() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">
-                  Total Appointments
+                  Total Earnings
                 </p>
                 <p className="text-3xl font-bold text-white">
-                  {completedAppointments}
+                  ${totalEarnings.toFixed(2)}
                 </p>
-                <p className="text-xs text-muted-foreground">completed</p>
+                <p className="text-xs text-muted-foreground">lifetime</p>
               </div>
               <div className="bg-emerald-900/20 p-3 rounded-full">
-                <Calendar className="h-6 w-6 text-emerald-400" />
+                <CreditCard className="h-6 w-6 text-emerald-400" />
               </div>
             </div>
           </CardContent>
@@ -230,149 +242,197 @@ export function DoctorEarnings() {
             Payout Management
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Current Payout Status */}
-          <div className="bg-muted/20 p-4 rounded-lg border border-emerald-900/20">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-medium text-white">
-                Available for Payout
-              </h3>
-              {pendingPayout ? (
-                <Badge
-                  variant="outline"
-                  className="bg-amber-900/20 border-amber-900/30 text-amber-400"
-                >
-                  PENDING
-                </Badge>
-              ) : (
-                <Badge
-                  variant="outline"
-                  className="bg-emerald-900/20 border-emerald-900/30 text-emerald-400"
-                >
-                  Available
-                </Badge>
-              )}
-            </div>
+        <CardContent className="space-y-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="overview">Payout Overview</TabsTrigger>
+              <TabsTrigger value="history">Payout History</TabsTrigger>
+            </TabsList>
 
-            {pendingPayout ? (
-              <div className="space-y-2">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Pending Credits</p>
-                    <p className="text-white font-medium">
-                      {pendingPayout.credits}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Pending Amount</p>
-                    <p className="text-white font-medium">
-                      ${pendingPayout.net_amount.toFixed(2)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">PayPal Email</p>
-                    <p className="text-white font-medium text-xs">
-                      {pendingPayout.paypal_email}
-                    </p>
-                  </div>
-                </div>
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription className="text-sm">
-                    Your payout request is pending approval. You'll receive the
-                    payment once an admin approves it.
-                  </AlertDescription>
-                </Alert>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Available Credits</p>
-                  <p className="text-white font-medium">{availableCredits}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Payout Amount</p>
-                  <p className="text-white font-medium">
-                    ${availablePayout.toFixed(2)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Platform Fee</p>
-                  <p className="text-white font-medium">
-                    ${platformFee.toFixed(2)}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {!pendingPayout && availableCredits > 0 && (
-              <Button
-                onClick={() => setShowPayoutDialog(true)}
-                className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700"
-              >
-                Request Payout for All Credits
-              </Button>
-            )}
-
-            {availableCredits === 0 && !pendingPayout && (
-              <div className="text-center py-4">
-                <p className="text-muted-foreground">
-                  No credits available for payout. Complete more appointments to
-                  earn credits.
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Payout Information */}
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="text-sm">
-              <strong>Payout Structure:</strong> You earn $8 per credit.
-              Platform fee is $2 per credit. Payouts include all your available
-              credits and are processed via PayPal.
-            </AlertDescription>
-          </Alert>
-
-          {/* Payout History */}
-          {payouts.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="text-lg font-medium text-white">Payout History</h3>
-              <div className="space-y-2">
-                {payouts.slice(0, 5).map((payout) => (
-                  <div
-                    key={payout.id}
-                    className="flex items-center justify-between p-3 rounded-md bg-muted/10 border border-emerald-900/10"
-                  >
-                    <div>
-                      <p className="text-white font-medium">
-                        {format(new Date(payout.created_at), "MMM d, yyyy")}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {payout.credits} credits • $
-                        {payout.net_amount.toFixed(2)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {payout.paypal_email}
-                      </p>
-                    </div>
+            <TabsContent value="overview" className="space-y-4">
+              {/* Current Payout Status */}
+              <div className="bg-muted/20 p-4 rounded-lg border border-emerald-900/20">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium text-white">
+                    Available for Payout
+                  </h3>
+                  {pendingPayout ? (
                     <Badge
                       variant="outline"
-                      className={
-                        payout.status === "APPROVED"
-                          ? "bg-emerald-900/20 border-emerald-900/30 text-emerald-400"
-                          : payout.status === "PENDING"
-                          ? "bg-amber-900/20 border-amber-900/30 text-amber-400"
-                          : "bg-red-900/20 border-red-900/30 text-red-400"
-                      }
+                      className="bg-amber-900/20 border-amber-900/30 text-amber-400"
                     >
-                      {payout.status}
+                      PENDING APPROVAL
                     </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="bg-emerald-900/20 border-emerald-900/30 text-emerald-400"
+                    >
+                      READY
+                    </Badge>
+                  )}
+                </div>
+
+                {pendingPayout ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Pending Credits</p>
+                        <p className="text-white font-medium text-lg">
+                          {pendingPayout.credits}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Pending Amount</p>
+                        <p className="text-white font-medium text-lg">
+                          ${pendingPayout.net_amount.toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <p className="text-muted-foreground">PayPal Email</p>
+                        <p className="text-white font-medium">
+                          {pendingPayout.paypal_email}
+                        </p>
+                      </div>
+                    </div>
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription className="text-sm">
+                        Your payout request is pending admin approval. You'll receive the
+                        payment within 2-3 business days after approval.
+                      </AlertDescription>
+                    </Alert>
                   </div>
-                ))}
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                      <div className="text-center p-3 bg-muted/10 rounded-lg">
+                        <p className="text-muted-foreground">Available Credits</p>
+                        <p className="text-white font-medium text-xl">{availableCredits}</p>
+                      </div>
+                      <div className="text-center p-3 bg-muted/10 rounded-lg">
+                        <p className="text-muted-foreground">Payout Amount</p>
+                        <p className="text-emerald-400 font-medium text-xl">
+                          ${availablePayout.toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="text-center p-3 bg-muted/10 rounded-lg">
+                        <p className="text-muted-foreground">Platform Fee</p>
+                        <p className="text-white font-medium text-xl">
+                          ${platformFee.toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {availableCredits > 0 ? (
+                      <Button
+                        onClick={() => setShowPayoutDialog(true)}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700"
+                        size="lg"
+                      >
+                        <CreditCard className="h-5 w-5 mr-2" />
+                        Request Payout for All Credits
+                      </Button>
+                    ) : (
+                      <div className="text-center py-4">
+                        <Coins className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                        <p className="text-muted-foreground">
+                          No credits available for payout. Complete more appointments to
+                          earn credits.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+
+              {/* Payout Information */}
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-sm">
+                  <strong>Payout Structure:</strong> Each credit is worth $10. Platform fee is $2 per credit. 
+                  You earn $8 per credit. Payouts are processed via PayPal within 2-3 business days after approval.
+                </AlertDescription>
+              </Alert>
+            </TabsContent>
+
+            <TabsContent value="history" className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-white">Payout History</h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchPayoutHistory}
+                  disabled={payoutsLoading}
+                  className="border-emerald-900/30"
+                >
+                  <History className="h-4 w-4 mr-1" />
+                  Refresh
+                </Button>
+              </div>
+
+              {payouts.length > 0 ? (
+                <div className="space-y-3">
+                  {payouts.map((payout) => (
+                    <div
+                      key={payout.id}
+                      className="flex items-center justify-between p-4 rounded-lg bg-muted/10 border border-emerald-900/10"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <p className="text-white font-medium">
+                            {payout.credits} credits • ${payout.net_amount.toFixed(2)}
+                          </p>
+                          <Badge
+                            variant="outline"
+                            className={
+                              payout.status === "APPROVED" || payout.status === "PROCESSED"
+                                ? "bg-emerald-900/20 border-emerald-900/30 text-emerald-400"
+                                : payout.status === "PENDING"
+                                ? "bg-amber-900/20 border-amber-900/30 text-amber-400"
+                                : "bg-red-900/20 border-red-900/30 text-red-400"
+                            }
+                          >
+                            {payout.status}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-muted-foreground">
+                          <div>
+                            <span>PayPal: </span>
+                            <span className="text-white">{payout.paypal_email}</span>
+                          </div>
+                          <div>
+                            <span>Requested: </span>
+                            <span className="text-white">
+                              {format(new Date(payout.created_at), "MMM d, yyyy 'at' h:mm a")}
+                            </span>
+                          </div>
+                          {payout.processed_at && (
+                            <div className="md:col-span-2">
+                              <span>Processed: </span>
+                              <span className="text-white">
+                                {format(new Date(payout.processed_at), "MMM d, yyyy 'at' h:mm a")}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <History className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                  <h3 className="text-xl font-medium text-white mb-2">
+                    No payout history
+                  </h3>
+                  <p className="text-muted-foreground">
+                    You haven't requested any payouts yet. Request a payout when you have available credits.
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 
@@ -389,26 +449,24 @@ export function DoctorEarnings() {
           </DialogHeader>
 
           <form onSubmit={handlePayoutRequest} className="space-y-4">
-            <div className="bg-muted/20 p-4 rounded-lg space-y-2">
+            <div className="bg-muted/20 p-4 rounded-lg space-y-3">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">
-                  Available credits:
-                </span>
-                <span className="text-white">{availableCredits}</span>
+                <span className="text-muted-foreground">Available credits:</span>
+                <span className="text-white font-medium">{availableCredits}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Gross amount:</span>
+                <span className="text-muted-foreground">Gross amount ($10/credit):</span>
                 <span className="text-white">
                   ${(availableCredits * 10).toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">
-                  Platform fee (20%):
+                  Platform fee ($2/credit):
                 </span>
                 <span className="text-white">-${platformFee.toFixed(2)}</span>
               </div>
-              <div className="border-t border-emerald-900/20 pt-2 flex justify-between font-medium">
+              <div className="border-t border-emerald-900/20 pt-3 flex justify-between font-medium text-lg">
                 <span className="text-white">Net payout:</span>
                 <span className="text-emerald-400">
                   ${availablePayout.toFixed(2)}
@@ -417,7 +475,7 @@ export function DoctorEarnings() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="paypalEmail">PayPal Email</Label>
+              <Label htmlFor="paypalEmail">PayPal Email Address</Label>
               <Input
                 id="paypalEmail"
                 type="email"
@@ -428,16 +486,16 @@ export function DoctorEarnings() {
                 required
               />
               <p className="text-sm text-muted-foreground">
-                Enter the PayPal email where you want to receive the payout.
+                Enter the PayPal email where you want to receive the payment.
               </p>
             </div>
 
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="text-sm">
-                Once processed by admin, {availableCredits} credits will be
-                deducted from your account and ${availablePayout.toFixed(2)}{" "}
-                will be sent to your PayPal.
+                <strong>Important:</strong> Once processed by admin, {availableCredits} credits will be
+                deducted from your account and ${availablePayout.toFixed(2)} will be sent to your PayPal.
+                This action cannot be undone.
               </AlertDescription>
             </Alert>
 
@@ -453,7 +511,7 @@ export function DoctorEarnings() {
               </Button>
               <Button
                 type="submit"
-                disabled={payoutLoading}
+                disabled={payoutLoading || availableCredits === 0}
                 className="bg-emerald-600 hover:bg-emerald-700"
               >
                 {payoutLoading ? (

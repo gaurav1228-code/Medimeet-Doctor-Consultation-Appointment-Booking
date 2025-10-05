@@ -35,7 +35,7 @@ function Home() {
               <div className="flex gap-6">
                 <Link
                   href={
-                    "https://blessed-doberman-1.accounts.dev/sign-up?sign_up_force_redirect_url=https://deputy-furthermore-routers-lens.trycloudflare.com&redirect_url=https://deputy-furthermore-routers-lens.trycloudflare.com"
+                    "https://blessed-doberman-1.accounts.dev/sign-in?__clerk_db_jwt=dvb_33dNXo8Iwwkj1f0puQ21ntf0B9f#/?sign_in_force_redirect_url=https%3A%2F%2Ffrequencies-billion-farm-prevent.trycloudflare.com%2FRoleSelector&redirect_url=https%3A%2F%2Ffrequencies-billion-farm-prevent.trycloudflare.com%2F"
                   }
                 >
                   <Button
@@ -45,7 +45,7 @@ function Home() {
                     Get Started <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
-                <Link href={"/Patient-dashboard"}>
+                <Link href={"https://blessed-doberman-1.accounts.dev/sign-in?__clerk_db_jwt=dvb_33dNXo8Iwwkj1f0puQ21ntf0B9f#/?sign_in_force_redirect_url=https%3A%2F%2Ffrequencies-billion-farm-prevent.trycloudflare.com%2FRoleSelector&redirect_url=https%3A%2F%2Ffrequencies-billion-farm-prevent.trycloudflare.com%2F"}>
                   <Button
                     size="lg"
                     variant="outline"
@@ -220,15 +220,9 @@ function Home() {
                   size="lg"
                   className=" text-white bg-emerald-600 hover:bg-emerald-700"
                 >
-                  <Link href={"/sign-up"}>Sign Up Now</Link>
+                  <Link href={"https://blessed-doberman-1.accounts.dev/sign-in?__clerk_db_jwt=dvb_33dNXo8Iwwkj1f0puQ21ntf0B9f#/?sign_in_force_redirect_url=https%3A%2F%2Ffrequencies-billion-farm-prevent.trycloudflare.com%2FRoleSelector&redirect_url=https%3A%2F%2Ffrequencies-billion-farm-prevent.trycloudflare.com%2F"}>Sign Up Now</Link>
                 </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="border-emerald-700/30 hover:bg-muted/80"
-                >
-                  <Link href={"/Pricing"}>View Pricing</Link>
-                </Button>
+                
               </div>
             </CardContent>
           </Card>

@@ -17,13 +17,15 @@ export default async function PatientAppointmentsPage() {
   const { appointments, error } = await getPatientAppointments();
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 pt-26 py-8">
+      <div className="mb-6">
       <PageHeader
         icon={<Calendar />}
         title="My Appointments"
-        backLink="/Patient-dashboard"
-        backLabel="Home"
+        backLink={null}
+        backLabel={null}
       />
+      </div>
 
       <Card className="border-emerald-900/20">
         <CardContent className="p-6">

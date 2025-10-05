@@ -1,4 +1,4 @@
-// components/appointment-card.jsx
+// components/appointment-card.jsx - UPDATED
 "use client";
 
 import { useState, useEffect } from "react";
@@ -23,7 +23,11 @@ import {
   X,
   Edit,
   Loader2,
-  CheckCircle,
+  CreditCard,
+  FileText,
+  ExternalLink,
+  Download,
+  Eye,
 } from "lucide-react";
 import { format } from "date-fns";
 import useFetch from "@/hooks/use-fetch";
@@ -31,9 +35,16 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {
   cancelAppointment,
-  completeAppointment,
   addAppointmentNotes,
+  shareMedicalHistory,
 } from "@/lib/actions/appointment-actions";
+import { createClient } from "@supabase/supabase-js";
+import { getPatientMedicalHistoryForDoctor } from "@/lib/actions/medical-history";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
 export function AppointmentCard({
   appointment,
@@ -41,8 +52,11 @@ export function AppointmentCard({
   refetchAppointments,
 }) {
   const [open, setOpen] = useState(false);
-  const [action, setAction] = useState(null); // 'cancel', 'notes', 'video', or 'complete'
+  const [action, setAction] = useState(null);
   const [notes, setNotes] = useState(appointment.notes || "");
+  const [medicalDocuments, setMedicalDocuments] = useState([]);
+  const [loadingMedicalHistory, setLoadingMedicalHistory] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date()); // Add current time state
   const router = useRouter();
 
   // UseFetch hooks for server actions
@@ -52,15 +66,60 @@ export function AppointmentCard({
     data: cancelData,
   } = useFetch(cancelAppointment);
   const {
-    loading: completeLoading,
-    fn: submitComplete,
-    data: completeData,
-  } = useFetch(completeAppointment);
-  const {
     loading: notesLoading,
     fn: submitNotes,
     data: notesData,
   } = useFetch(addAppointmentNotes);
+
+  // Update current time every minute
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // Fetch medical documents when dialog opens for doctors
+  useEffect(() => {
+    if (open && userRole === "DOCTOR" && appointment.patient_id) {
+      fetchMedicalDocuments();
+    }
+  }, [open, userRole, appointment.patient_id]);
+  
+const fetchMedicalDocuments = async () => {
+  try {
+    setLoadingMedicalHistory(true);
+    
+    // Use server action instead of direct Supabase call
+    const result = await getPatientMedicalHistoryForDoctor(appointment.patient_id);
+    
+    if (result.success) {
+      setMedicalDocuments(result.documents || []);
+      
+      // Show informational message based on appointment status
+      if (result.appointmentStatus && result.appointmentStatus !== 'SCHEDULED') {
+        toast.info(`Viewing medical history from ${result.appointmentStatus.toLowerCase()} appointment`);
+      }
+    } else {
+      console.error("Error fetching medical documents:", result.error);
+      
+      // Show more specific error messages
+      if (result.error.includes('No appointment history')) {
+        toast.error("No appointment history with this patient");
+      } else if (result.error.includes('Doctor access required')) {
+        toast.error("Doctor access required to view medical history");
+      } else {
+        toast.error("Failed to load medical history");
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching medical documents:", error);
+    toast.error("Failed to load medical history");
+  } finally {
+    setLoadingMedicalHistory(false);
+  }
+};
 
   // Format date and time
   const formatDateTime = (dateString) => {
@@ -80,50 +139,17 @@ export function AppointmentCard({
     }
   };
 
-  // Check if appointment can be marked as completed
-  const canMarkCompleted = () => {
-    if (userRole !== "DOCTOR" || appointment.status !== "SCHEDULED") {
-      return false;
-    }
-    const now = new Date();
-    const appointmentEndTime = new Date(appointment.end_time);
-    return now >= appointmentEndTime;
-  };
-
   // Handle cancel appointment
   const handleCancelAppointment = async () => {
     if (cancelLoading) return;
 
-    if (
-      window.confirm(
-        "Are you sure you want to cancel this appointment? This action cannot be undone."
-      )
-    ) {
+    const confirmationMessage =
+      userRole === "DOCTOR"
+        ? "Are you sure you want to cancel this appointment? The credits will be refunded to the patient and deducted from your account."
+        : "Are you sure you want to cancel this appointment? Your credits will be refunded.";
+
+    if (window.confirm(confirmationMessage)) {
       await submitCancel(appointment.id);
-    }
-  };
-
-  // Handle mark as completed
-  const handleMarkCompleted = async () => {
-    if (completeLoading) return;
-
-    // Check if appointment end time has passed
-    const now = new Date();
-    const appointmentEndTime = new Date(appointment.end_time);
-
-    if (now < appointmentEndTime) {
-      alert(
-        "Cannot mark appointment as completed before the scheduled end time."
-      );
-      return;
-    }
-
-    if (
-      window.confirm(
-        "Are you sure you want to mark this appointment as completed? This action cannot be undone."
-      )
-    ) {
-      await submitComplete(appointment.id);
     }
   };
 
@@ -134,38 +160,36 @@ export function AppointmentCard({
     await submitNotes(appointment.id, notes);
   };
 
-// In your appointment-card.jsx - Update the video call function
-const handleJoinVideoCall = () => {
-  setAction("video");
-  const appointmentId = appointment.id;
-  
-  // Just pass the appointment ID - the API will handle room creation
-  const videoCallUrl = `/video-call/hms-page?appointmentId=${appointmentId}`;
+  // Video call function
+  const handleJoinVideoCall = () => {
+    setAction("video");
+    const appointmentId = appointment.id;
 
-  console.log("Opening 100ms video call for appointment:", appointmentId);
+    const videoCallUrl = `/video-call/hms-page?appointmentId=${appointmentId}`;
 
-  const newWindow = window.open(
-    videoCallUrl,
-    `video-call-${appointmentId}`,
-    "width=1280,height=800,menubar=no,toolbar=no,location=no,status=no"
-  );
+    console.log("Opening 100ms video call for appointment:", appointmentId);
 
-  if (newWindow) {
-    toast.success(`Joining video consultation...`);
-    setTimeout(() => newWindow?.focus(), 500);
-  } else {
-    toast.error("Please allow pop-ups. Opening in same tab...");
-    window.location.href = videoCallUrl;
-  }
+    const newWindow = window.open(
+      videoCallUrl,
+      `video-call-${appointmentId}`,
+      "width=1280,height=800,menubar=no,toolbar=no,location=no,status=no"
+    );
 
-  setAction(null);
-};
+    if (newWindow) {
+      toast.success(`Joining video consultation...`);
+      setTimeout(() => newWindow?.focus(), 500);
+    } else {
+      toast.error("Please allow pop-ups. Opening in same tab...");
+      window.location.href = videoCallUrl;
+    }
+
+    setAction(null);
+  };
+
   // Handle successful operations
   useEffect(() => {
     if (cancelData?.success) {
-      const action =
-        cancelData.action === "COMPLETED" ? "completed" : "cancelled";
-      toast.success(`Appointment ${action} successfully`);
+      toast.success(`Appointment cancelled successfully`);
       setOpen(false);
       if (refetchAppointments) {
         refetchAppointments();
@@ -174,18 +198,6 @@ const handleJoinVideoCall = () => {
       }
     }
   }, [cancelData, refetchAppointments, router]);
-
-  useEffect(() => {
-    if (completeData?.success) {
-      toast.success("Appointment marked as completed");
-      setOpen(false);
-      if (refetchAppointments) {
-        refetchAppointments();
-      } else {
-        router.refresh();
-      }
-    }
-  }, [completeData, refetchAppointments, router]);
 
   useEffect(() => {
     if (notesData?.success) {
@@ -199,19 +211,19 @@ const handleJoinVideoCall = () => {
     }
   }, [notesData, refetchAppointments, router]);
 
-  // Determine if appointment is active (within 30 minutes of start time)
+  // UPDATED: Determine if appointment is active (within 3 minutes of start time until end time)
   const isAppointmentActive = () => {
-    const now = new Date();
+    const now = currentTime;
     const appointmentTime = new Date(appointment.start_time);
     const appointmentEndTime = new Date(appointment.end_time);
 
-    // Can join 30 minutes before start until end time
-    const canJoinEarly =
-      appointmentTime.getTime() - now.getTime() <= 30 * 60 * 1000;
-    const isDuringAppointment =
-      now >= appointmentTime && now <= appointmentEndTime;
+    // Can join 3 minutes before start until end time
+    const threeMinutesBefore = new Date(appointmentTime.getTime() - 3 * 60 * 1000);
+    const canJoinEarly = now >= threeMinutesBefore;
+    const isDuringAppointment = now >= appointmentTime && now <= appointmentEndTime;
+    const isBeforeEndTime = now <= appointmentEndTime;
 
-    return canJoinEarly || isDuringAppointment;
+    return (canJoinEarly && isBeforeEndTime) || isDuringAppointment;
   };
 
   // Determine other party information based on user role
@@ -238,6 +250,36 @@ const handleJoinVideoCall = () => {
     }
   };
 
+  // Show credit information for doctors
+  const showCreditInfo =
+    userRole === "DOCTOR" && appointment.status === "SCHEDULED";
+
+  // Add Medical History Section to the Dialog
+  const [openMedicalDialog, setOpenMedicalDialog] = useState(false);
+
+  const renderMedicalHistorySection = () => {
+    if (userRole !== "DOCTOR") return null;
+
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-medium text-muted-foreground">
+            Patient Medical History
+          </h4>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-blue-900/30 text-blue-400 hover:bg-blue-900/20"
+            onClick={() => setOpenMedicalDialog(true)}
+          >
+            <FileText className="h-4 w-4 mr-1" />
+            View Documents
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
       {/* Appointment Card */}
@@ -261,6 +303,14 @@ const handleJoinVideoCall = () => {
                   >
                     {appointment.status}
                   </Badge>
+                  {showCreditInfo && (
+                    <Badge
+                      variant="outline"
+                      className="bg-emerald-900/20 border-emerald-900/30 text-emerald-400"
+                    >
+                      <CreditCard className="h-3 w-3 mr-1" />2 Credits Earned
+                    </Badge>
+                  )}
                 </div>
 
                 {userRole === "DOCTOR" && otherParty?.email && (
@@ -296,23 +346,6 @@ const handleJoinVideoCall = () => {
 
             <div className="flex flex-col gap-2 self-end md:self-start">
               <div className="flex gap-2 flex-wrap">
-                {/* Complete Button - Doctor only */}
-                {canMarkCompleted() && (
-                  <Button
-                    size="sm"
-                    onClick={handleMarkCompleted}
-                    disabled={completeLoading}
-                    className="bg-emerald-600 hover:bg-emerald-700"
-                  >
-                    {completeLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <CheckCircle className="h-4 w-4" />
-                    )}
-                    Complete
-                  </Button>
-                )}
-
                 {/* View Details Button */}
                 <Button
                   size="sm"
@@ -397,17 +430,33 @@ const handleJoinVideoCall = () => {
                 </div>
               </div>
 
-              {/* Status */}
+              {/* Status & Credit Information */}
               <div className="space-y-3">
                 <h4 className="text-sm font-medium text-muted-foreground">
                   Status
                 </h4>
-                <Badge
-                  variant="outline"
-                  className={getStatusVariant(appointment.status)}
-                >
-                  {appointment.status}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant="outline"
+                    className={getStatusVariant(appointment.status)}
+                  >
+                    {appointment.status}
+                  </Badge>
+                  {showCreditInfo && (
+                    <Badge
+                      variant="outline"
+                      className="bg-emerald-900/20 border-emerald-900/30 text-emerald-400"
+                    >
+                      <CreditCard className="h-3 w-3 mr-1" />2 Credits Earned
+                    </Badge>
+                  )}
+                </div>
+                {showCreditInfo && (
+                  <p className="text-xs text-muted-foreground">
+                    Credits were added to your account when this appointment was
+                    booked
+                  </p>
+                )}
               </div>
 
               {/* Patient Description */}
@@ -428,16 +477,17 @@ const handleJoinVideoCall = () => {
             </div>
 
             {/* Right Side */}
-            <div className="space-y-6">
+            <div className="space-y-3">
+              {/* Medical History Section - ADD THIS */}
+              {renderMedicalHistorySection()}
               {/* Video Call */}
-
               {appointment.status === "SCHEDULED" && (
                 <div className="space-y-3">
                   <h4 className="text-sm font-medium text-muted-foreground">
                     Video Consultation
                   </h4>
                   <Button
-                    className="w-full bg-emerald-600 hover:bg-emerald-700"
+                    className=" bg-emerald-600 hover:bg-emerald-700"
                     disabled={!isAppointmentActive() || action === "video"}
                     onClick={handleJoinVideoCall}
                   >
@@ -451,22 +501,18 @@ const handleJoinVideoCall = () => {
                         <Video className="h-4 w-4 mr-2" />
                         {isAppointmentActive()
                           ? "Join Video Room"
-                          : "Video room available 30 minutes before appointment"}
+                          : "Video room available 3 minutes before appointment"}
                       </>
                     )}
                   </Button>
-                  <div className="text-xs text-muted-foreground text-center space-y-1">
-                    <p>• Both doctor and patient join the same room</p>
-                    <p>
-                      • Share the room ID if needed:{" "}
-                      <strong>appointment-{appointment.id}</strong>
+                  {!isAppointmentActive() && (
+                    <p className="text-xs text-muted-foreground">
+                      Available from {format(new Date(new Date(appointment.start_time).getTime() - 3 * 60 * 1000), "h:mm a")} to {formatTime(appointment.end_time)}
                     </p>
-                  </div>
-                  <p className="text-xs text-muted-foreground text-center">
-                    Simple peer-to-peer video call
-                  </p>
+                  )}
                 </div>
               )}
+
               {/* Doctor Notes */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -541,6 +587,20 @@ const handleJoinVideoCall = () => {
                   </div>
                 )}
               </div>
+
+              {/* Cancellation Warning */}
+              {appointment.status === "SCHEDULED" && (
+                <div className="p-4 bg-amber-900/20 border border-amber-900/30 rounded-lg">
+                  <h4 className="text-sm font-medium text-amber-400 mb-2">
+                    Cancellation Policy
+                  </h4>
+                  <p className="text-xs text-amber-300">
+                    {userRole === "DOCTOR"
+                      ? "If cancelled, 2 credits will be refunded to the patient and deducted from your account."
+                      : "If cancelled, your 2 credits will be refunded. Cancellations must be made at least 1 hour before the appointment."}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -568,6 +628,94 @@ const handleJoinVideoCall = () => {
               )}
             </div>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Medical History Dialog */}
+      <Dialog open={openMedicalDialog} onOpenChange={setOpenMedicalDialog}>
+        <DialogContent className="!max-w-4xl !max-h-3xl w-[90vw] h-[75vh] p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold text-white">
+              Patient Medical History
+            </DialogTitle>
+            <DialogDescription>
+              Documents shared by the patient for medical review.
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingMedicalHistory ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="h-5 w-5 animate-spin text-emerald-400 mr-2" />
+              <span className="text-muted-foreground">
+                Loading medical history...
+              </span>
+            </div>
+          ) : medicalDocuments.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-[60vh] overflow-y-auto">
+              {medicalDocuments.map((doc) => (
+                <div
+                  key={doc.id}
+                  className="p-2 bg-muted/20 max-h-28 rounded-lg border border-emerald-900/10 hover:bg-muted/30 transition-colors"
+                >
+                  <div className="flex items-start gap-2 mb-2">
+                    <FileText className="h-4 w-4 text-emerald-400 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-white truncate">
+                        {doc.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground capitalize truncate">
+                        {doc.document_type} •{" "}
+                        {format(new Date(doc.upload_date), "MMM d, yyyy")}
+                      </p>
+                      {doc.description && (
+                        <p className="text-xs text-muted-foreground truncate mt-1">
+                          {doc.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-1 mt-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0"
+                      onClick={() =>
+                        window.open(doc.google_drive_url, "_blank")
+                      }
+                      title="View Document"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0"
+                      onClick={() => {
+                        const link = document.createElement("a");
+                        link.href = doc.google_drive_url;
+                        link.target = "_blank";
+                        link.click();
+                      }}
+                      title="Download Document"
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6 text-muted-foreground">
+              <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">No medical documents available</p>
+            </div>
+          )}
+
+          <div className="p-3 bg-blue-900/20 rounded-lg border border-blue-900/30 mt-4">
+            <p className="text-xs text-blue-300">
+              <strong>Note:</strong> Please maintain patient confidentiality
+              when reviewing these medical records.
+            </p>
+          </div>
         </DialogContent>
       </Dialog>
     </>

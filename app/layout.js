@@ -7,6 +7,8 @@ import { dark } from "@clerk/themes";
 import NavbarWrapper from "@/components/NavbarWrapper";
 import { Toaster } from "sonner";
 import HMSProviderWrapper from "@/components/HMSProviderWrapper";
+import Footer from "@/components/Footer";
+
 
 const inter = Inter({
   subsets: ["latin"],
@@ -29,6 +31,9 @@ export default function RootLayout({ children }) {
                 <NavbarWrapper />
               </header>
               <main className="min-h-screen">{children}</main>
+              <footer>
+                <Footer/>
+              </footer>
             </HMSProviderWrapper>
           </ThemeProvider>
         </body>
