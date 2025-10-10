@@ -1,8 +1,15 @@
 // app/about/page.jsx
+import { PageHeader } from "@/components/PageHeader";
 export default function About() {
   return (
     <div className="pt-20 min-h-screen bg-gradient-to-b from-background to-muted/20">
       <div className="container mx-auto px-6 py-16">
+        <PageHeader
+        icon={null}
+        title={null}
+        backLink="/"
+        backLabel="Home"
+      />
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-16">
             <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
