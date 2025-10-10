@@ -1,3 +1,4 @@
+// components/theme-provider.jsx
 "use client"
 
 import * as React from "react"
