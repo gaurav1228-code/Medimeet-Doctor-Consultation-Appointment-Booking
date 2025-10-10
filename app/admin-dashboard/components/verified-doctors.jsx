@@ -20,6 +20,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { format } from "date-fns";
+
 export function VerifiedDoctors({ doctors: initialDoctors }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [doctors, setDoctors] = useState(initialDoctors);
@@ -48,12 +49,13 @@ export function VerifiedDoctors({ doctors: initialDoctors }) {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/admin/update-doctor-status", {
+      const response = await fetch("/api/admin", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          action: "update-doctor-status",
           doctorId: doctor.id,
           suspend: suspend,
         }),

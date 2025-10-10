@@ -18,6 +18,7 @@ import {
   Stethoscope,
   Loader2,
   AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -32,32 +33,51 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { BarLoader } from "react-spinners";
-import { approvePayout } from "@/lib/actions/admin";
+import { approvePayout, getPendingPayouts } from "@/lib/actions/admin";
 
 export function PendingPayouts({ payouts: initialPayouts }) {
   const [payouts, setPayouts] = useState(initialPayouts);
   const [selectedPayout, setSelectedPayout] = useState(null);
   const [showApproveDialog, setShowApproveDialog] = useState(false);
-  const [approvingPayoutId, setApprovingPayoutId] = useState(null);
   const [isApproving, setIsApproving] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Handle view details
+  // Refresh payouts data
+  const refreshPayouts = async () => {
+    setIsRefreshing(true);
+    try {
+      const result = await getPendingPayouts();
+      if (result.success) {
+        setPayouts(result.payouts || []);
+        toast.success("Payouts refreshed");
+      } else {
+        toast.error("Failed to refresh payouts");
+      }
+    } catch (error) {
+      console.error("Error refreshing payouts:", error);
+      toast.error("Error refreshing payouts");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    setPayouts(initialPayouts);
+  }, [initialPayouts]);
+
   const handleViewDetails = (payout) => {
     setSelectedPayout(payout);
   };
 
-  // Handle approve payout
   const handleApprovePayout = (payout) => {
     setSelectedPayout(payout);
     setShowApproveDialog(true);
   };
 
-  // Confirm approval
   const confirmApproval = async () => {
     if (!selectedPayout || isApproving) return;
 
     setIsApproving(true);
-    setApprovingPayoutId(selectedPayout.id);
     
     try {
       const formData = new FormData();
@@ -66,14 +86,15 @@ export function PendingPayouts({ payouts: initialPayouts }) {
       const result = await approvePayout(formData);
 
       if (result.success) {
-        toast.success("Payout approved successfully!");
+        toast.success(result.message || "Payout approved successfully!");
         
-        // Remove the approved payout from the list
+        // Remove the approved payout from the local state
         setPayouts(prev => prev.filter(p => p.id !== selectedPayout.id));
         
-        // Close dialogs and reset states
+        // Close dialogs
         setShowApproveDialog(false);
         setSelectedPayout(null);
+        
       } else {
         toast.error(`Failed to approve payout: ${result.error}`);
       }
@@ -82,7 +103,6 @@ export function PendingPayouts({ payouts: initialPayouts }) {
       toast.error("An unexpected error occurred");
     } finally {
       setIsApproving(false);
-      setApprovingPayoutId(null);
     }
   };
 
@@ -90,25 +110,33 @@ export function PendingPayouts({ payouts: initialPayouts }) {
     if (!isApproving) {
       setSelectedPayout(null);
       setShowApproveDialog(false);
-      setApprovingPayoutId(null);
     }
-  };
-
-  // Check if currently approving this specific payout
-  const isApprovingPayout = (payoutId) => {
-    return isApproving && approvingPayoutId === payoutId;
   };
 
   return (
     <div>
       <Card className="bg-muted/20 border-emerald-900/20">
         <CardHeader>
-          <CardTitle className="text-xl font-bold text-white">
-            Pending Payouts
-          </CardTitle>
-          <CardDescription>
-            Review and approve doctor payout requests
-          </CardDescription>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="text-xl font-bold text-white">
+                Pending Payouts
+              </CardTitle>
+              <CardDescription>
+                Review and approve doctor payout requests
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={refreshPayouts}
+              disabled={isRefreshing}
+              className="border-emerald-900/30"
+            >
+              <RefreshCw className={`h-4 w-4 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {payouts.length === 0 ? (
@@ -168,7 +196,7 @@ export function PendingPayouts({ payouts: initialPayouts }) {
                             variant="outline"
                             size="sm"
                             onClick={() => handleViewDetails(payout)}
-                            disabled={isApprovingPayout(payout.id)}
+                            disabled={isApproving}
                             className="border-emerald-900/30 hover:bg-muted/80"
                           >
                             View Details
@@ -176,20 +204,11 @@ export function PendingPayouts({ payouts: initialPayouts }) {
                           <Button
                             size="sm"
                             onClick={() => handleApprovePayout(payout)}
-                            disabled={isApprovingPayout(payout.id)}
+                            disabled={isApproving}
                             className="bg-emerald-600 hover:bg-emerald-700"
                           >
-                            {isApprovingPayout(payout.id) ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                Approving...
-                              </>
-                            ) : (
-                              <>
-                                <Check className="h-4 w-4 mr-1" />
-                                Approve
-                              </>
-                            )}
+                            <Check className="h-4 w-4 mr-1" />
+                            Approve
                           </Button>
                         </div>
                       </div>
@@ -329,11 +348,11 @@ export function PendingPayouts({ payouts: initialPayouts }) {
                 onClick={() => handleApprovePayout(selectedPayout)}
                 disabled={
                   selectedPayout.doctor.credits < selectedPayout.credits ||
-                  isApprovingPayout(selectedPayout.id)
+                  isApproving
                 }
                 className="bg-emerald-600 hover:bg-emerald-700"
               >
-                {isApprovingPayout(selectedPayout.id) ? (
+                {isApproving ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                     Approving...

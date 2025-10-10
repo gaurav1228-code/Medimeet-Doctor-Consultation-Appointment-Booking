@@ -15,6 +15,7 @@ import {
   AlertCircle,
   Coins,
   History,
+  RefreshCw,
 } from "lucide-react";
 import {
   Dialog,
@@ -40,22 +41,25 @@ export function DoctorEarnings() {
   const [earningsData, setEarningsData] = useState(null);
   const [payouts, setPayouts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
 
   // Custom hooks for API calls
   const { loading: payoutLoading, data: payoutData, fn: submitPayoutRequest } = useFetch(requestPayout);
-  const { loading: payoutsLoading, fn: fetchPayouts } = useFetch(getDoctorPayouts);
 
   // Fetch earnings and payouts data
-  const fetchData = async () => {
+  const fetchData = async (showToast = false) => {
     try {
-      setLoading(true);
+      setRefreshing(true);
       
       // Fetch earnings data
       const earningsResponse = await getDoctorEarnings();
       if (earningsResponse.success) {
         setEarningsData(earningsResponse.earnings);
         setPayouts(earningsResponse.payouts || []);
+        if (showToast) {
+          toast.success("Data refreshed successfully");
+        }
       } else {
         toast.error("Failed to load earnings data");
       }
@@ -64,14 +68,7 @@ export function DoctorEarnings() {
       toast.error("Failed to load earnings data");
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Fetch payout history separately
-  const fetchPayoutHistory = async () => {
-    const result = await fetchPayouts();
-    if (result.success) {
-      setPayouts(result.payouts || []);
+      setRefreshing(false);
     }
   };
 
@@ -91,23 +88,22 @@ export function DoctorEarnings() {
     const formData = new FormData();
     formData.append("paypalEmail", paypalEmail);
 
-    await submitPayoutRequest(formData);
-  };
-
-  // Handle successful payout request
-  useEffect(() => {
-    if (payoutData?.success) {
+    const result = await submitPayoutRequest(formData);
+    
+    if (result.success) {
       setShowPayoutDialog(false);
       setPaypalEmail("");
       toast.success("Payout request submitted successfully!");
       
       // Refresh data
       fetchData();
-      fetchPayoutHistory();
-    } else if (payoutData?.error) {
-      toast.error(payoutData.error);
     }
-  }, [payoutData]);
+  };
+
+  // Refresh data manually
+  const handleRefresh = () => {
+    fetchData(true);
+  };
 
   // Use default values if data is still loading
   const {
@@ -156,6 +152,20 @@ export function DoctorEarnings() {
 
   return (
     <div className="space-y-6">
+      {/* Header with refresh button */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-white">Earnings & Payouts</h2>
+        <Button
+          variant="outline"
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="border-emerald-900/30"
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </div>
+
       {/* Earnings Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border-emerald-900/20">
@@ -362,8 +372,8 @@ export function DoctorEarnings() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={fetchPayoutHistory}
-                  disabled={payoutsLoading}
+                  onClick={handleRefresh}
+                  disabled={refreshing}
                   className="border-emerald-900/30"
                 >
                   <History className="h-4 w-4 mr-1" />

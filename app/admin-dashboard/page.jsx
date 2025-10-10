@@ -8,51 +8,60 @@ import { Patients } from "./components/patients";
 import { getUserData } from "@/lib/server-actions";
 import { redirect } from "next/navigation";
 import { USER_ROLES } from "@/lib/constants";
-import {
-  getPendingDoctors,
-  getVerifiedDoctors,
-  getAllPatients,
-} from "@/lib/admin-data";
 import { PendingPayouts } from "./components/pending-payouts";
 import { getPendingPayouts } from "@/lib/actions/admin";
 
+// Combined data fetching function
+async function getAdminData() {
+  try {
+    const [pendingDoctorsRes, verifiedDoctorsRes, patientsRes, pendingPayoutsRes] = await Promise.all([
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/admin?type=pending-doctors`, {
+        cache: 'no-store'
+      }),
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/admin?type=verified-doctors`, {
+        cache: 'no-store'
+      }),
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/admin?type=patients`, {
+        cache: 'no-store'
+      }),
+      getPendingPayouts()
+    ]);
+
+    const [pendingDoctorsData, verifiedDoctorsData, patientsData] = await Promise.all([
+      pendingDoctorsRes.json(),
+      verifiedDoctorsRes.json(),
+      patientsRes.json()
+    ]);
+
+    return {
+      pendingDoctors: pendingDoctorsData.doctors || [],
+      verifiedDoctors: verifiedDoctorsData.doctors || [],
+      patients: patientsData.patients || [],
+      pendingPayouts: pendingPayoutsRes.success ? pendingPayoutsRes.payouts : []
+    };
+  } catch (error) {
+    console.error("Error fetching admin data:", error);
+    return {
+      pendingDoctors: [],
+      verifiedDoctors: [],
+      patients: [],
+      pendingPayouts: []
+    };
+  }
+}
+
 const AdminDashboard = async () => {
-  // Check if user is admin
   const userData = await getUserData();
 
-  console.log("🔍 Admin Dashboard - User data:", userData);
-
   if (!userData) {
-    console.log("❌ No user data, redirecting to home");
     redirect("/");
   }
 
   if (userData.role !== USER_ROLES.ADMIN) {
-    console.log(
-      "❌ User is not admin, redirecting to home. User role:",
-      userData.role
-    );
     redirect("/");
   }
 
-  console.log("✅ User is admin, loading dashboard...");
-
-  // Fetch data directly from Supabase on the server
- const [pendingDoctors, verifiedDoctors, patients, pendingPayoutsResult] = await Promise.all([
-  getPendingDoctors(),
-  getVerifiedDoctors(),
-  getAllPatients(),
-  getPendingPayouts(),
-]);
-
-  const pendingPayouts = pendingPayoutsResult.success ? pendingPayoutsResult.payouts : [];
-
-  console.log("📊 Data loaded:", {
-    pendingDoctors: pendingDoctors.length,
-    verifiedDoctors: verifiedDoctors.length,
-    patients: patients.length,
-    pendingPayouts: pendingPayouts.length,
-  });
+  const { pendingDoctors, verifiedDoctors, patients, pendingPayouts } = await getAdminData();
 
   return (
     <div className="container mx-auto px-4 pt-26">
