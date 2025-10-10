@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm install --legacy-peer-deps && next build",
     "start": "next start",
     "lint": "next lint"
   },
@@ -38,6 +38,7 @@
     "react-hook-form": "^7.62.0",
     "react-spinners": "^0.17.0",
     "sonner": "^2.0.7",
+    "svix": "^1.24.0",
     "tailwind-merge": "^3.3.1",
     "uuid": "^13.0.0",
     "zod": "^4.1.8"
@@ -50,10 +51,11 @@
     "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^8.46.0",
     "@typescript-eslint/parser": "^8.46.0",
+    "autoprefixer": "^10.4.20",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
     "postcss": "^8",
-    "tailwindcss": "^4",
+    "tailwindcss": "^3.4.14",
     "typescript": "^5.9.3"
   }
 }

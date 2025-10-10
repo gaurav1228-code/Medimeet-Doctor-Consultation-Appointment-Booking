@@ -1,19 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: ['@clerk/nextjs'],
-  },
+  serverExternalPackages: ['@clerk/nextjs'],
   typescript: {
     ignoreBuildErrors: false,
   },
   eslint: {
-    ignoreDuringBuilds: true, // Temporarily disable ESLint during build
+    ignoreDuringBuilds: true,
   },
-  images: {
-    domains: ['images.clerk.dev', 'img.clerk.com'],
+  experimental: {
+    // Remove serverComponentsExternalPackages from here
   },
-  // Add this to handle dynamic server usage
-  output: 'standalone', // Better for Vercel deployment
 }
 
 module.exports = nextConfig
