@@ -6,17 +6,12 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  output: 'export',
-  trailingSlash: true,
+  // REMOVE output: 'export' - this is causing the build to fail
   images: {
     unoptimized: true,
     domains: ['img.clerk.com', 'images.clerk.dev'],
   },
-  experimental: {
-    esmExternals: false,
-  },
-  // Netlify specific
-  assetPrefix: process.env.NODE_ENV === 'production' ? '' : '',
+  // Remove experimental config if not needed
 }
 
 module.exports = nextConfig
