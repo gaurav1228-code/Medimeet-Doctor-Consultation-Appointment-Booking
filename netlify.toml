@@ -1,0 +1,18 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+# Handle client-side routes
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# API proxies (if you have external APIs)
+[[redirects]]
+  from = "/api/*"
+  to = "/api/:splat"
+  status = 200
