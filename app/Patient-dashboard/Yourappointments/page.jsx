@@ -1,4 +1,4 @@
-// app/Patient-dashboard/Yourappointments/page.jsx
+// app/Patient-dashboard/Yourappointments/page.jsx - UPDATED
 import { Calendar } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { redirect } from "next/navigation";
@@ -19,16 +19,16 @@ export default async function PatientAppointmentsPage() {
 
   try {
     const result = await getPatientAppointments();
-    appointments = result.appointments || [];
-    error = result.error;
     
-    console.log('Appointments data:', { 
-      appointmentsCount: appointments.length,
-      error: result.error,
-      userId: user.id 
-    });
+    if (result.success) {
+      appointments = result.appointments || [];
+    } else {
+      error = result.error;
+      console.error('Error fetching appointments:', result.error);
+    }
+    
   } catch (err) {
-    console.error('Error fetching appointments:', err);
+    console.error('Error in appointments page:', err);
     error = err.message;
   }
 
@@ -44,18 +44,23 @@ export default async function PatientAppointmentsPage() {
       </div>
 
       <Card className="border-emerald-900/20">
+        <CardHeader>
+          <CardTitle className="text-xl font-bold text-white">
+            Your Appointments
+          </CardTitle>
+        </CardHeader>
         <CardContent className="p-6">
           {error ? (
             <div className="text-center py-8">
-              <p className="text-red-400">Error loading appointments: {error}</p>
+              <p className="text-red-400 mb-4">Error loading appointments: {error}</p>
               <button 
                 onClick={() => window.location.reload()} 
-                className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700"
+                className="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700"
               >
                 Retry
               </button>
             </div>
-          ) : appointments?.length > 0 ? (
+          ) : appointments.length > 0 ? (
             <div className="space-y-4">
               {appointments.map((appointment) => (
                 <AppointmentCard
@@ -72,8 +77,7 @@ export default async function PatientAppointmentsPage() {
                 No appointments scheduled
               </h3>
               <p className="text-muted-foreground">
-                You don&apos;t have any appointments scheduled yet. Browse our
-                doctors and book your first consultation.
+                You don&apos;t have any appointments scheduled yet.
               </p>
             </div>
           )}
