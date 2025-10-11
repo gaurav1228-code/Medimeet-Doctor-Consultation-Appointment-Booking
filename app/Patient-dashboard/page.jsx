@@ -3,7 +3,14 @@ import { getUserData } from "@/lib/server-actions";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Stethoscope, Calendar, CreditCard, User, Clock, FileText  } from "lucide-react";
+import {
+  Stethoscope,
+  Calendar,
+  CreditCard,
+  User,
+  Clock,
+  FileText,
+} from "lucide-react";
 import { APPOINTMENT_CREDIT_COST } from "@/lib/constants";
 import Link from "next/link";
 import { getPatientStats } from "@/lib/actions/patient-stats";
@@ -120,7 +127,7 @@ async function PatientDashboard() {
                 </CardContent>
               </Card>
             </Link>
-
+          
             <Link href="/Patient-dashboard/Yourappointments">
               <Card className="border-emerald-900/40 hover:border-emerald-800/40 transition-all duration-300 cursor-pointer h-full">
                 <CardContent className="p-6 text-center h-full flex flex-col justify-center">
@@ -134,7 +141,6 @@ async function PatientDashboard() {
                 </CardContent>
               </Card>
             </Link>
-
             <Link href="/Patient-dashboard/medical-history">
               <Card className="border-emerald-900/40 hover:border-emerald-800/40 transition-all duration-300 cursor-pointer h-full">
                 <CardContent className="p-6 text-center h-full flex flex-col justify-center">
@@ -148,7 +154,6 @@ async function PatientDashboard() {
                 </CardContent>
               </Card>
             </Link>
-
             <Link href="/Pricing">
               <Card className="border-emerald-900/40 hover:border-emerald-800/40 transition-all duration-300 cursor-pointer h-full">
                 <CardContent className="p-6 text-center h-full flex flex-col justify-center">

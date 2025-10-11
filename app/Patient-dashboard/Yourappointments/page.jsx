@@ -6,7 +6,12 @@ import { getCurrentUser } from "@/lib/server-actions";
 import { PageHeader } from "@/components/PageHeader";
 import { AppointmentCard } from "@/components/appointment-card";
 import { getPatientAppointments } from "@/lib/actions/patient-appointments";
+// app/Yourappointments/page.jsx
+import { redirect } from 'next/navigation';
 
+export default function YourappointmentsRedirect() {
+  redirect('/Patient-dashboard/Yourappointments');
+}
 export default async function PatientAppointmentsPage() {
   const user = await getCurrentUser();
 
@@ -14,24 +19,46 @@ export default async function PatientAppointmentsPage() {
     redirect("/");
   }
 
-  const { appointments, error } = await getPatientAppointments();
+  let appointments = [];
+  let error = null;
+
+  try {
+    const result = await getPatientAppointments();
+    appointments = result.appointments || [];
+    error = result.error;
+    
+    console.log('Appointments data:', { 
+      appointmentsCount: appointments.length,
+      error: result.error,
+      userId: user.id 
+    });
+  } catch (err) {
+    console.error('Error fetching appointments:', err);
+    error = err.message;
+  }
 
   return (
     <div className="container mx-auto px-4 pt-26 py-8">
       <div className="mb-6">
-      <PageHeader
-        icon={<Calendar />}
-        title="My Appointments"
-        backLink={null}
-        backLabel={null}
-      />
+        <PageHeader
+          icon={<Calendar />}
+          title="My Appointments"
+          backLink="/Patient-dashboard"
+          backLabel="Back to Dashboard"
+        />
       </div>
 
       <Card className="border-emerald-900/20">
         <CardContent className="p-6">
           {error ? (
             <div className="text-center py-8">
-              <p className="text-red-400">Error: {error}</p>
+              <p className="text-red-400">Error loading appointments: {error}</p>
+              <button 
+                onClick={() => window.location.reload()} 
+                className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700"
+              >
+                Retry
+              </button>
             </div>
           ) : appointments?.length > 0 ? (
             <div className="space-y-4">
