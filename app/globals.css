@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 :root {
   --radius: 0.625rem;
@@ -71,21 +69,26 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
-@layer base {
-  * {
-    border-color: var(--border);
-    outline-color: var(--ring);
-  }
-  body {
-    background-color: var(--background);
-    color: var(--foreground);
-  }
+* {
+  border-color: var(--border);
+  outline-color: var(--ring);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
 }
 
 .gradient {
-  @apply bg-gradient-to-b from-emerald-500 to-teal-400;
+  background: linear-gradient(to bottom, #10b981, #2dd4bf);
 }
 
 .gradient-title {
-  @apply bg-gradient-to-b from-emerald-500 to-teal-400 font-bold text-transparent bg-clip-text pb-1 pr-2;
+  background: linear-gradient(to bottom, #10b981, #2dd4bf);
+  font-weight: bold;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  padding-bottom: 0.25rem;
+  padding-right: 0.5rem;
 }
