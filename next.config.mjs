@@ -6,14 +6,12 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // Add these for Vercel
+  // Important for Netlify deployment
+  output: 'standalone',
+  // Enable if you face module issues
   experimental: {
-    serverComponentsExternalPackages: ['@clerk/nextjs'],
-  },
-  // Handle trailing slashes
-  trailingSlash: false,
-  // Enable SWC minification
-  swcMinify: true,
+    esmExternals: false,
+  }
 }
 
 module.exports = nextConfig

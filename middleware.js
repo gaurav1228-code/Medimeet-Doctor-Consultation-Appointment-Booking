@@ -62,13 +62,14 @@ export default clerkMiddleware(async (auth, req) => {
 
       // ADMIN REDIRECTION LOGIC
       if (supabaseRole === "ADMIN") {
-        console.log("🎯 Admin user detected");
-        if (!pathname.startsWith("/admin-dashboard") && pathname !== "/") {
-          console.log("🔄 Redirecting admin to /admin-dashboard");
-          return NextResponse.redirect(new URL("/admin-dashboard", req.url));
-        }
-        return NextResponse.next();
-      } else if (pathname.startsWith("/admin-dashboard")) {
+  console.log("🎯 Admin user detected");
+  if (!pathname.startsWith("/admin-dashboard")) {
+    const adminUrl = new URL("/admin-dashboard", req.url);
+    // Use the same domain instead of hardcoding
+    adminUrl.hostname = req.nextUrl.hostname;
+    return NextResponse.redirect(adminUrl);
+  }
+} else if (pathname.startsWith("/admin-dashboard")) {
         console.log("🚫 Non-admin trying to access admin dashboard");
         return NextResponse.redirect(new URL("/", req.url));
       }
