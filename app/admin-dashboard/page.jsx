@@ -1,4 +1,4 @@
-// app/admin-dashboard/page.jsx
+// app/admin-dashboard/page.jsx - UPDATED FOR VERCEL
 import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Users, User, CreditCard } from "lucide-react";
@@ -11,27 +11,57 @@ import { USER_ROLES } from "@/lib/constants";
 import { PendingPayouts } from "./components/pending-payouts";
 import { getPendingPayouts } from "@/lib/actions/admin";
 
-// Combined data fetching function
+// Combined data fetching function with error handling
 async function getAdminData() {
   try {
+    console.log('🔄 Fetching admin data...');
+    
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://your-app-name.vercel.app';
+    
     const [pendingDoctorsRes, verifiedDoctorsRes, patientsRes, pendingPayoutsRes] = await Promise.all([
-      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/admin?type=pending-doctors`, {
-        cache: 'no-store'
+      fetch(`${baseUrl}/api/admin?type=pending-doctors`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
       }),
-      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/admin?type=verified-doctors`, {
-        cache: 'no-store'
+      fetch(`${baseUrl}/api/admin?type=verified-doctors`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
       }),
-      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/admin?type=patients`, {
-        cache: 'no-store'
+      fetch(`${baseUrl}/api/admin?type=patients`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
       }),
       getPendingPayouts()
     ]);
 
+    // Check if responses are ok
+    if (!pendingDoctorsRes.ok) {
+      console.error('Pending doctors fetch failed:', pendingDoctorsRes.status);
+    }
+    if (!verifiedDoctorsRes.ok) {
+      console.error('Verified doctors fetch failed:', verifiedDoctorsRes.status);
+    }
+    if (!patientsRes.ok) {
+      console.error('Patients fetch failed:', patientsRes.status);
+    }
+
     const [pendingDoctorsData, verifiedDoctorsData, patientsData] = await Promise.all([
-      pendingDoctorsRes.json(),
-      verifiedDoctorsRes.json(),
-      patientsRes.json()
+      pendingDoctorsRes.ok ? pendingDoctorsRes.json() : { doctors: [] },
+      verifiedDoctorsRes.ok ? verifiedDoctorsRes.json() : { doctors: [] },
+      patientsRes.ok ? patientsRes.json() : { patients: [] }
     ]);
+
+    console.log('✅ Admin data fetched:', {
+      pending: pendingDoctorsData.doctors?.length || 0,
+      verified: verifiedDoctorsData.doctors?.length || 0,
+      patients: patientsData.patients?.length || 0
+    });
 
     return {
       pendingDoctors: pendingDoctorsData.doctors || [],
@@ -40,7 +70,7 @@ async function getAdminData() {
       pendingPayouts: pendingPayoutsRes.success ? pendingPayoutsRes.payouts : []
     };
   } catch (error) {
-    console.error("Error fetching admin data:", error);
+    console.error("❌ Error fetching admin data:", error);
     return {
       pendingDoctors: [],
       verifiedDoctors: [],
@@ -70,36 +100,21 @@ const AdminDashboard = async () => {
         <p className="text-muted-foreground">Manage doctor verifications</p>
       </div>
 
-      <Tabs
-        defaultValue="pending"
-        className="grid grid-cols-1 md:grid-cols-4 gap-6"
-      >
+      <Tabs defaultValue="pending" className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <TabsList className="md:col-span-1 bg-muted/30 border h-24 md:h-60 flex sm:flex-row md:flex-col w-full p-2 md:p-1 rounded-md md:space-y-2 sm:space-x-2 md:space-x-0">
-          <TabsTrigger
-            value="pending"
-            className="flex-1 md:flex md:items-center md:justify-start md:px-4 md:py-3 w-full"
-          >
+          <TabsTrigger value="pending" className="flex-1 md:flex md:items-center md:justify-start md:px-4 md:py-3 w-full">
             <AlertCircle className="h-4 w-4 mr-2" />
             <span>Pending Verification</span>
           </TabsTrigger>
-          <TabsTrigger
-            value="doctors"
-            className="flex-1 md:flex md:items-center md:justify-start md:px-4 md:py-3 w-full"
-          >
+          <TabsTrigger value="doctors" className="flex-1 md:flex md:items-center md:justify-start md:px-4 md:py-3 w-full">
             <Users className="h-4 w-4 mr-2" />
             <span>All Doctors</span>
           </TabsTrigger>
-          <TabsTrigger
-            value="patients"
-            className="flex-1 md:flex md:items-center md:justify-start md:px-4 md:py-3 w-full"
-          >
+          <TabsTrigger value="patients" className="flex-1 md:flex md:items-center md:justify-start md:px-4 md:py-3 w-full">
             <User className="h-4 w-4 mr-2" />
             <span>All Patients</span>
           </TabsTrigger>
-          <TabsTrigger
-            value="payouts"
-            className="flex-1 md:flex md:items-center md:justify-start md:px-4 md:py-3 w-full"
-          >
+          <TabsTrigger value="payouts" className="flex-1 md:flex md:items-center md:justify-start md:px-4 md:py-3 w-full">
             <CreditCard className="h-4 w-4 mr-2 hidden md:inline" />
             <span>Payouts</span>
           </TabsTrigger>

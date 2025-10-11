@@ -1,4 +1,4 @@
-// app/api/admin/route.js - COMBINED
+// app/api/admin/route.js - UPDATED FOR VERCEL
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { auth } from '@clerk/nextjs/server';
@@ -37,6 +37,8 @@ export async function GET(request) {
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
+
+    console.log('🔄 Admin API fetching:', type, 'for user:', userId);
 
     let data, error;
 
@@ -77,6 +79,8 @@ export async function GET(request) {
     }
 
     const responseKey = type === 'patients' ? 'patients' : 'doctors';
+    console.log(`✅ Admin API found ${data?.length || 0} ${responseKey}`);
+    
     return NextResponse.json({ [responseKey]: data || [] });
   } catch (error) {
     console.error('Error in admin API:', error);
@@ -92,7 +96,10 @@ export async function POST(request) {
       return NextResponse.json({ error: adminCheck.error }, { status: adminCheck.status });
     }
 
-    const { action, doctorId, status, documentType } = await request.json();
+    const body = await request.json();
+    const { action, doctorId, status, documentType, suspend } = body;
+
+    console.log('🔄 Admin POST action:', action, body);
 
     if (!action) {
       return NextResponse.json({ error: 'Action is required' }, { status: 400 });
@@ -129,7 +136,6 @@ export async function POST(request) {
         break;
 
       case 'update-doctor-status':
-        const { suspend } = await request.json();
         if (!doctorId || typeof suspend !== 'boolean') {
           return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
         }
