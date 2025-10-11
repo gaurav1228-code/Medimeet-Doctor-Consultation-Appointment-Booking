@@ -6,7 +6,7 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // Add this to fix Supabase Edge Runtime issues
+  // Fix for Supabase Edge Runtime
   experimental: {
     esmExternals: 'loose'
   },
@@ -15,6 +15,13 @@ const nextConfig = {
       'utf-8-validate': 'commonjs utf-8-validate',
       'bufferutil': 'commonjs bufferutil',
     })
+    
+    // Fix for the missing module
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      'tw-animate-css': false,
+    }
+    
     return config
   },
 }
