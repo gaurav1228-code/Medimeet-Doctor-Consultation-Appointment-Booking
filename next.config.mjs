@@ -6,9 +6,18 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // Important for Netlify deployment
+  // Required for Netlify
   output: 'standalone',
-  // Enable if you face module issues
+  // Handle image optimization
+  images: {
+    unoptimized: true,
+    domains: ['img.clerk.com', 'images.clerk.dev'],
+  },
+  // Environment variables
+  env: {
+    CUSTOM_KEY: process.env.CUSTOM_KEY,
+  },
+  // Experimental features for better compatibility
   experimental: {
     esmExternals: false,
   }

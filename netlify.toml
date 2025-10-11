@@ -5,14 +5,20 @@
 [build.environment]
   NODE_VERSION = "18"
 
-# Handle client-side routes
+# For Next.js to handle client-side routing
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
 
-# API proxies (if you have external APIs)
+# Important: Handle API routes
 [[redirects]]
   from = "/api/*"
-  to = "/api/:splat"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+# Handle 100ms webhooks
+[[redirects]]
+  from = "/api/webhooks/100ms"
+  to = "/.netlify/functions/100ms-webhook"
   status = 200
