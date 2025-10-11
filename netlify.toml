@@ -1,24 +1,12 @@
 [build]
-  command = "npm run build"
+  command = "npm install --legacy-peer-deps && next build"
   publish = ".next"
 
 [build.environment]
   NODE_VERSION = "18"
+  NPM_FLAGS = "--legacy-peer-deps"
 
-# For Next.js to handle client-side routing
 [[redirects]]
   from = "/*"
   to = "/index.html"
-  status = 200
-
-# Important: Handle API routes
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-
-# Handle 100ms webhooks
-[[redirects]]
-  from = "/api/webhooks/100ms"
-  to = "/.netlify/functions/100ms-webhook"
   status = 200
