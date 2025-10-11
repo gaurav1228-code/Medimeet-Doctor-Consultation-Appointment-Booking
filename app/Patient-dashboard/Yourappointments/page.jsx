@@ -6,12 +6,7 @@ import { getCurrentUser } from "@/lib/server-actions";
 import { PageHeader } from "@/components/PageHeader";
 import { AppointmentCard } from "@/components/appointment-card";
 import { getPatientAppointments } from "@/lib/actions/patient-appointments";
-// app/Yourappointments/page.jsx
-import { redirect } from 'next/navigation';
 
-export default function YourappointmentsRedirect() {
-  redirect('/Patient-dashboard/Yourappointments');
-}
 export default async function PatientAppointmentsPage() {
   const user = await getCurrentUser();
 
