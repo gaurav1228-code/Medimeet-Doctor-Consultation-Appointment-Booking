@@ -1,4 +1,3 @@
-/* app/globals.css */
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -113,17 +112,26 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+* {
+  border-color: var(--border);
+  outline-color: var(--ring);
 }
-.gradient{
-  @apply bg-gradient-to-b from-emerald-500 to-teal-400
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
 }
-.gradient-title{
-  @apply bg-gradient-to-b from-emerald-500 to-teal-400 font-bold text-transparent bg-clip-text pb-1 pr-2
+
+.gradient {
+  background: linear-gradient(to bottom, #10b981, #2dd4bf);
+}
+
+.gradient-title {
+  background: linear-gradient(to bottom, #10b981, #2dd4bf);
+  font-weight: bold;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  padding-bottom: 0.25rem;
+  padding-right: 0.5rem;
 }
