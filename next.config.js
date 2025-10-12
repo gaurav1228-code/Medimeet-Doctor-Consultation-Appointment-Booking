@@ -11,9 +11,8 @@ const nextConfig = {
     domains: ['img.clerk.com', 'images.clerk.dev'],
   },
   trailingSlash: false,
-  // Important for Netlify
-  output: 'export',
-  distDir: 'out',
+  // Remove output: 'export' for Netlify deployment
+  // output: 'export', // REMOVE THIS LINE
 }
 
 module.exports = nextConfig
