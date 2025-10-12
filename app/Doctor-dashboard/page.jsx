@@ -1,12 +1,15 @@
-// app/Doctor-dashboard/page.jsx - UPDATED
+// app/Doctor-dashboard/page.jsx
 import { redirect } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getCurrentUser } from "@/lib/server-actions";
+
 import AvailabilitySettings from "./_components/availability-settings";
+
 import { Calendar, Clock, Coins, Stethoscope } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import DoctorAppointmentsList from "./_components/appointments-list";
 import { DoctorEarnings } from "./_components/doctor-earnings";
+
 
 export default async function DoctorDashboard() {
   const user = await getCurrentUser();
@@ -33,7 +36,7 @@ export default async function DoctorDashboard() {
         defaultValue="appointments"
         className="grid grid-cols-1 md:grid-cols-4 gap-6"
       >
-        <TabsList className="md:col-span-1 bg-muted/30 border h-14 md:h-44 flex sm:flex-row md:flex-col w-full p-2 md:p-1 rounded-md md:space-y-2 sm:space-x-2 md:space-x-0">
+        <TabsList className="md:col-span-1 bg-muted/30 border h-14 md:h-40 flex sm:flex-row md:flex-col w-full p-2 md:p-1 rounded-md md:space-y-2 sm:space-x-2 md:space-x-0">
           <TabsTrigger
             value="appointments"
             className="flex-1 md:flex md:items-center md:justify-start md:px-4 md:py-3 w-full"

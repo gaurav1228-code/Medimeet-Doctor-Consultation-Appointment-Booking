@@ -693,7 +693,17 @@ export default function UserProfilePage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          
+                          {doc.verified ? (
+                            <CheckCircle
+                              className="h-4 w-4 text-green-500"
+                              title="Verified"
+                            />
+                          ) : (
+                            <XCircle
+                              className="h-4 w-4 text-yellow-500"
+                              title="Pending Verification"
+                            />
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"

@@ -7,7 +7,6 @@ import { dark } from "@clerk/themes";
 import NavbarWrapper from "@/components/NavbarWrapper";
 import { Toaster } from "sonner";
 import HMSProviderWrapper from "@/components/HMSProviderWrapper";
-import Footer from "@/components/Footer";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -20,14 +19,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <ClerkProvider 
-      appearance={{ baseTheme: dark }}
-      publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
-      signInFallbackRedirectUrl="/RoleSelector"
-      signUpFallbackRedirectUrl="/RoleSelector"
-      signInForceRedirectUrl="/RoleSelector"
-      signUpForceRedirectUrl="/RoleSelector"
-    >
+    <ClerkProvider appearance={{ baseTheme: dark }}>
       <html lang="en" suppressHydrationWarning>
         <body className={inter.className}>
           <ThemeProvider attribute="class" defaultTheme="dark">
@@ -37,9 +29,6 @@ export default function RootLayout({ children }) {
                 <NavbarWrapper />
               </header>
               <main className="min-h-screen">{children}</main>
-              <footer>
-                <Footer/>
-              </footer>
             </HMSProviderWrapper>
           </ThemeProvider>
         </body>

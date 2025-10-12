@@ -1,7 +1,7 @@
-// app/video-call/hms-page/page.jsx - FINAL WORKING VERSION WITH SUSPENSE
+// app/video-call/hms-page/page.jsx - FINAL WORKING VERSION
 "use client";
 
-import { useEffect, useState, useRef, Suspense } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,8 +29,7 @@ import {
 import { createBrowserClient } from "@/lib/supabase-client";
 import { useUser } from "@clerk/nextjs";
 
-// VideoCallContent component that uses useSearchParams
-function VideoCallContent() {
+export default function HMSVideoCallPage() {
   const searchParams = useSearchParams();
   const { user: clerkUser } = useUser();
   const [isLoading, setIsLoading] = useState(true);
@@ -463,6 +462,8 @@ function VideoCallContent() {
           )}
         </div>
 
+        
+
         {/* Controls */}
         <div className="bg-gray-800 p-6 border-t border-gray-700">
           <div className="flex flex-col items-center space-y-4">
@@ -522,31 +523,5 @@ function VideoCallContent() {
         </div>
       </div>
     </div>
-  );
-}
-
-// Loading component
-function VideoCallLoading() {
-  return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4">
-      <Card className="w-full max-w-md bg-gray-900 border-gray-700">
-        <CardContent className="p-6 text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-emerald-400" />
-          <h3 className="text-lg font-semibold text-white mb-2">
-            Loading Video Call...
-          </h3>
-          <p className="text-gray-400">Preparing your consultation room</p>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-// Main component with Suspense boundary
-export default function HMSVideoCallPage() {
-  return (
-    <Suspense fallback={<VideoCallLoading />}>
-      <VideoCallContent />
-    </Suspense>
   );
 }

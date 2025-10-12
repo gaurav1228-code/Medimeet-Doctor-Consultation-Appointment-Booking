@@ -1,4 +1,4 @@
-// app/Patient-dashboard/Yourappointments/page.jsx - UPDATED
+// app/Patient-dashboard/Yourappointments/page.jsx
 import { Calendar } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { redirect } from "next/navigation";
@@ -14,53 +14,24 @@ export default async function PatientAppointmentsPage() {
     redirect("/");
   }
 
-  let appointments = [];
-  let error = null;
-
-  try {
-    const result = await getPatientAppointments();
-    
-    if (result.success) {
-      appointments = result.appointments || [];
-    } else {
-      error = result.error;
-      console.error('Error fetching appointments:', result.error);
-    }
-    
-  } catch (err) {
-    console.error('Error in appointments page:', err);
-    error = err.message;
-  }
+  const { appointments, error } = await getPatientAppointments();
 
   return (
-    <div className="container mx-auto px-4 pt-26 py-8">
-      <div className="mb-6">
-        <PageHeader
-          icon={<Calendar />}
-          title="My Appointments"
-          backLink="/Patient-dashboard"
-          backLabel="Back to Dashboard"
-        />
-      </div>
+    <div className="container mx-auto px-4 py-8">
+      <PageHeader
+        icon={<Calendar />}
+        title="My Appointments"
+        backLink="/Patient-dashboard"
+        backLabel="Home"
+      />
 
       <Card className="border-emerald-900/20">
-        <CardHeader>
-          <CardTitle className="text-xl font-bold text-white">
-            Your Appointments
-          </CardTitle>
-        </CardHeader>
         <CardContent className="p-6">
           {error ? (
             <div className="text-center py-8">
-              <p className="text-red-400 mb-4">Error loading appointments: {error}</p>
-              <button 
-                onClick={() => window.location.reload()} 
-                className="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700"
-              >
-                Retry
-              </button>
+              <p className="text-red-400">Error: {error}</p>
             </div>
-          ) : appointments.length > 0 ? (
+          ) : appointments?.length > 0 ? (
             <div className="space-y-4">
               {appointments.map((appointment) => (
                 <AppointmentCard
@@ -77,7 +48,8 @@ export default async function PatientAppointmentsPage() {
                 No appointments scheduled
               </h3>
               <p className="text-muted-foreground">
-                You don&apos;t have any appointments scheduled yet.
+                You don&apos;t have any appointments scheduled yet. Browse our
+                doctors and book your first consultation.
               </p>
             </div>
           )}

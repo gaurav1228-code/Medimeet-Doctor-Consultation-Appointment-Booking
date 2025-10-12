@@ -1,16 +1,9 @@
-// app/Patient-dashboard/page.jsx - FIXED LINKS
+// app/Patient-dashboard/page.jsx
 import { getUserData } from "@/lib/server-actions";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Stethoscope,
-  Calendar,
-  CreditCard,
-  User,
-  Clock,
-  FileText,
-} from "lucide-react";
+import { Stethoscope, Calendar, CreditCard, User, Clock } from "lucide-react";
 import { APPOINTMENT_CREDIT_COST } from "@/lib/constants";
 import Link from "next/link";
 import { getPatientStats } from "@/lib/actions/patient-stats";
@@ -18,14 +11,8 @@ import { getPatientStats } from "@/lib/actions/patient-stats";
 async function PatientDashboard() {
   const userData = await getUserData();
 
-  // Redirect if not patient or not authenticated
-  if (!userData) {
-    redirect("/sign-in");
-  }
-
-  if (userData.role !== "PATIENT") {
-    console.log("❌ User is not a patient, redirecting to role selector");
-    redirect("/RoleSelector");
+  if (!userData || userData.role !== "PATIENT") {
+    redirect("/");
   }
 
   const { stats } = await getPatientStats();
@@ -114,13 +101,13 @@ async function PatientDashboard() {
           </Card>
         </div>
 
-        {/* Quick Actions - FIXED LINKS */}
+        {/* Quick Actions */}
         <div className="mb-8">
           <h2 className="text-2xl font-semibold text-white mb-4">
             Quick Actions
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Link href="/Patient-dashboard/speciality" className="block">
+            <Link href="/Patient-dashboard/speciality">
               <Card className="border-emerald-900/40 hover:border-emerald-800/40 transition-all duration-300 cursor-pointer h-full">
                 <CardContent className="p-6 text-center h-full flex flex-col justify-center">
                   <Stethoscope className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
@@ -133,8 +120,8 @@ async function PatientDashboard() {
                 </CardContent>
               </Card>
             </Link>
-          
-            <Link href="/Patient-dashboard/Yourappointments" className="block">
+            
+            <Link href="/Patient-dashboard/Yourappointments">
               <Card className="border-emerald-900/40 hover:border-emerald-800/40 transition-all duration-300 cursor-pointer h-full">
                 <CardContent className="p-6 text-center h-full flex flex-col justify-center">
                   <Calendar className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
@@ -147,22 +134,20 @@ async function PatientDashboard() {
                 </CardContent>
               </Card>
             </Link>
-            
-            <Link href="/Patient-dashboard/medical-history" className="block">
-              <Card className="border-emerald-900/40 hover:border-emerald-800/40 transition-all duration-300 cursor-pointer h-full">
-                <CardContent className="p-6 text-center h-full flex flex-col justify-center">
-                  <FileText className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
-                  <h3 className="font-semibold text-white mb-1">
-                    Medical History
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Upload and manage medical documents
-                  </p>
-                </CardContent>
-              </Card>
-            </Link>
-            
-            <Link href="/Pricing" className="block">
+
+            <Card className="border-emerald-900/40 hover:border-emerald-800/40 transition-all duration-300 cursor-pointer h-full">
+              <CardContent className="p-6 text-center h-full flex flex-col justify-center">
+                <User className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
+                <h3 className="font-semibold text-white mb-1">
+                  Medical History
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  View past consultations
+                </p>
+              </CardContent>
+            </Card>
+
+            <Link href="/Pricing">
               <Card className="border-emerald-900/40 hover:border-emerald-800/40 transition-all duration-300 cursor-pointer h-full">
                 <CardContent className="p-6 text-center h-full flex flex-col justify-center">
                   <CreditCard className="h-8 w-8 text-emerald-400 mx-auto mb-2" />

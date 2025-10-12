@@ -22,7 +22,6 @@ import { BarLoader } from "react-spinners";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-
 const PendingDoctors = ({ doctors }) => {
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -35,83 +34,76 @@ const PendingDoctors = ({ doctors }) => {
     setSelectedDoctor(null);
   };
 
-  const handleUpdateStatus = async (doctorId, status) => {
-    if (loading) return;
-    
-    setLoading(true);
-    try {
-      const response = await fetch('/api/admin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          action: 'verify-doctor',
-          doctorId, 
-          status 
-        }),
-      });
+ 
+const handleUpdateStatus = async (doctorId, status) => {
+  if (loading) return;
+  
+  setLoading(true);
+  try {
+    const response = await fetch('/api/admin/verify-doctor', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ doctorId, status }),
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-
-      if (result.success) {
-        window.location.reload();
-      } else {
-        console.error('Failed to update status:', result.error);
-        alert('Failed to update status: ' + (result.error || 'Unknown error'));
-      }
-    } catch (error) {
-      console.error('Error updating status:', error);
-      alert('Error updating status: ' + error.message);
-    } finally {
-      setLoading(false);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
     }
-  };
 
-  const handleVerifyDocument = async (doctorId, documentType) => {
-    if (loading) return;
-    
-    setLoading(true);
-    try {
-      const response = await fetch('/api/admin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          action: 'verify-document',
-          doctorId, 
-          documentType 
-        }),
-      });
+    const result = await response.json();
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-
-      if (result.success) {
-        const updatedDoctor = { ...selectedDoctor };
-        updatedDoctor[`${documentType}_verified`] = true;
-        setSelectedDoctor(updatedDoctor);
-      } else {
-        console.error('Failed to verify document:', result.error);
-        alert('Failed to verify document: ' + (result.error || 'Unknown error'));
-      }
-    } catch (error) {
-      console.error('Error verifying document:', error);
-      alert('Error verifying document: ' + error.message);
-    } finally {
-      setLoading(false);
+    if (result.success) {
+      window.location.reload();
+    } else {
+      console.error('Failed to update status:', result.error);
+      alert('Failed to update status: ' + (result.error || 'Unknown error'));
     }
-  };
+  } catch (error) {
+    console.error('Error updating status:', error);
+    alert('Error updating status: ' + error.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
+const handleVerifyDocument = async (doctorId, documentType) => {
+  if (loading) return;
+  
+  setLoading(true);
+  try {
+    const response = await fetch('/api/admin/verify-document', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ doctorId, documentType }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (result.success) {
+      const updatedDoctor = { ...selectedDoctor };
+      updatedDoctor[`${documentType}_verified`] = true;
+      setSelectedDoctor(updatedDoctor);
+    } else {
+      console.error('Failed to verify document:', result.error);
+      alert('Failed to verify document: ' + (result.error || 'Unknown error'));
+    }
+  } catch (error) {
+    console.error('Error verifying document:', error);
+    alert('Error verifying document: ' + error.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div>
@@ -177,6 +169,7 @@ const PendingDoctors = ({ doctors }) => {
       {selectedDoctor && (
         <Dialog open={!!selectedDoctor} onOpenChange={handleCloseDialog}>
           <DialogContent className="!w-[90vw] !max-w-6xl max-h-[100vh] overflow-y-auto">
+  
             <DialogHeader>
               <DialogTitle className="text-xl font-bold text-white">
                 Doctor Verification Details
@@ -187,7 +180,6 @@ const PendingDoctors = ({ doctors }) => {
             </DialogHeader>
 
             <div className="space-y-6 py-4">
-              {/* Doctor details remain the same */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-1">
                   <h4 className="text-sm font-medium text-muted-foreground">Full Name</h4>
