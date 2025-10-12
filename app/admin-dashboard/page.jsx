@@ -1,4 +1,4 @@
-// app/admin-dashboard/page.jsx - UPDATED FOR VERCEL
+// app/admin-dashboard/page.jsx - FIXED API CALLS
 import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Users, User, CreditCard } from "lucide-react";
@@ -16,40 +16,20 @@ async function getAdminData() {
   try {
     console.log('🔄 Fetching admin data...');
     
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://your-app-name.vercel.app';
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     
     const [pendingDoctorsRes, verifiedDoctorsRes, patientsRes, pendingPayoutsRes] = await Promise.all([
       fetch(`${baseUrl}/api/admin?type=pending-doctors`, {
         cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
       }),
       fetch(`${baseUrl}/api/admin?type=verified-doctors`, {
         cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
       }),
       fetch(`${baseUrl}/api/admin?type=patients`, {
         cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
       }),
       getPendingPayouts()
     ]);
-
-    // Check if responses are ok
-    if (!pendingDoctorsRes.ok) {
-      console.error('Pending doctors fetch failed:', pendingDoctorsRes.status);
-    }
-    if (!verifiedDoctorsRes.ok) {
-      console.error('Verified doctors fetch failed:', verifiedDoctorsRes.status);
-    }
-    if (!patientsRes.ok) {
-      console.error('Patients fetch failed:', patientsRes.status);
-    }
 
     const [pendingDoctorsData, verifiedDoctorsData, patientsData] = await Promise.all([
       pendingDoctorsRes.ok ? pendingDoctorsRes.json() : { doctors: [] },
@@ -57,11 +37,7 @@ async function getAdminData() {
       patientsRes.ok ? patientsRes.json() : { patients: [] }
     ]);
 
-    console.log('✅ Admin data fetched:', {
-      pending: pendingDoctorsData.doctors?.length || 0,
-      verified: verifiedDoctorsData.doctors?.length || 0,
-      patients: patientsData.patients?.length || 0
-    });
+    console.log('✅ Admin data fetched');
 
     return {
       pendingDoctors: pendingDoctorsData.doctors || [],

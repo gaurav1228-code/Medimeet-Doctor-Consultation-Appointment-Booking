@@ -1,4 +1,4 @@
-// app/Patient-dashboard/page.jsx
+// app/Patient-dashboard/page.jsx - FIXED LINKS
 import { getUserData } from "@/lib/server-actions";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -108,13 +108,13 @@ async function PatientDashboard() {
           </Card>
         </div>
 
-        {/* Quick Actions */}
+        {/* Quick Actions - FIXED LINKS */}
         <div className="mb-8">
           <h2 className="text-2xl font-semibold text-white mb-4">
             Quick Actions
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Link href="/Patient-dashboard/speciality">
+            <Link href="/Patient-dashboard/speciality" className="block">
               <Card className="border-emerald-900/40 hover:border-emerald-800/40 transition-all duration-300 cursor-pointer h-full">
                 <CardContent className="p-6 text-center h-full flex flex-col justify-center">
                   <Stethoscope className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
@@ -128,7 +128,7 @@ async function PatientDashboard() {
               </Card>
             </Link>
           
-            <Link href="/Patient-dashboard/Yourappointments">
+            <Link href="/Patient-dashboard/Yourappointments" className="block">
               <Card className="border-emerald-900/40 hover:border-emerald-800/40 transition-all duration-300 cursor-pointer h-full">
                 <CardContent className="p-6 text-center h-full flex flex-col justify-center">
                   <Calendar className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
@@ -141,7 +141,8 @@ async function PatientDashboard() {
                 </CardContent>
               </Card>
             </Link>
-            <Link href="/Patient-dashboard/medical-history">
+            
+            <Link href="/Patient-dashboard/medical-history" className="block">
               <Card className="border-emerald-900/40 hover:border-emerald-800/40 transition-all duration-300 cursor-pointer h-full">
                 <CardContent className="p-6 text-center h-full flex flex-col justify-center">
                   <FileText className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
@@ -154,7 +155,8 @@ async function PatientDashboard() {
                 </CardContent>
               </Card>
             </Link>
-            <Link href="/Pricing">
+            
+            <Link href="/Pricing" className="block">
               <Card className="border-emerald-900/40 hover:border-emerald-800/40 transition-all duration-300 cursor-pointer h-full">
                 <CardContent className="p-6 text-center h-full flex flex-col justify-center">
                   <CreditCard className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
