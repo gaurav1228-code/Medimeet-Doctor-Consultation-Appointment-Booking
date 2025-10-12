@@ -5,12 +5,12 @@ import { AlertCircle, Users, User, CreditCard } from "lucide-react";
 import PendingDoctors from "./components/pending-doctors";
 import { VerifiedDoctors } from "./components/verified-doctors";
 import { Patients } from "./components/patients";
-import { getUserData } from "@/lib/server-actions";
 import { redirect } from "next/navigation";
 import { USER_ROLES } from "@/lib/constants";
 import { PendingPayouts } from "./components/pending-payouts";
 import { getPendingPayouts } from "@/lib/actions/admin";
 import { createServerClient } from "@/lib/supabase-client";
+import { currentUser } from "@clerk/nextjs/server";
 
 // Server-side data fetching for admin dashboard
 async function getAdminData() {
@@ -19,7 +19,6 @@ async function getAdminData() {
     
     const supabase = createServerClient();
     
-    // Fetch all data in parallel
     const [
       pendingDoctorsResult,
       verifiedDoctorsResult, 
@@ -73,13 +72,17 @@ async function getAdminData() {
 }
 
 const AdminDashboard = async () => {
-  const userData = await getUserData();
-
-  if (!userData) {
-    redirect("/");
+  // Get user from Clerk
+  const user = await currentUser();
+  
+  if (!user) {
+    redirect("/sign-in");
   }
 
-  if (userData.role !== USER_ROLES.ADMIN) {
+  // Check if user is admin using Clerk metadata
+  const userRole = user.unsafeMetadata?.role;
+  
+  if (userRole !== USER_ROLES.ADMIN) {
     redirect("/");
   }
 

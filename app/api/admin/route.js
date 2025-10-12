@@ -7,7 +7,9 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// This route will only be used for server components
+// Disable static generation for this route
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -15,8 +17,6 @@ export async function GET(request) {
 
     console.log('🔄 Admin API fetching:', type);
 
-    // For server components, we'll use service role key directly
-    // since we're already in a protected route
     let data, error;
 
     switch (type) {
