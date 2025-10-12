@@ -29,7 +29,9 @@ const TRANSACTION_TYPES = {
 };
 
 exports.handler = async (event, context) => {
-  // Handle CORS
+  console.log('🔔 Webhook received at:', new Date().toISOString());
+  
+  // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 200,
@@ -61,7 +63,11 @@ exports.handler = async (event, context) => {
     const svix_timestamp = headers['svix-timestamp'];
     const svix_signature = headers['svix-signature'];
 
-    console.log("📥 Webhook received");
+    console.log("📥 Webhook received - Headers present:", { 
+      hasSvixId: !!svix_id, 
+      hasSvixTimestamp: !!svix_timestamp, 
+      hasSvixSignature: !!svix_signature 
+    });
 
     if (!svix_id || !svix_timestamp || !svix_signature) {
       console.error("❌ Missing required headers");
@@ -71,16 +77,30 @@ exports.handler = async (event, context) => {
           'Access-Control-Allow-Origin': '*',
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ error: 'Missing headers' })
+        body: JSON.stringify({ error: 'Missing webhook headers' })
       };
     }
 
     const wh = new Webhook(process.env.CLERK_WEBHOOK_SECRET);
-    const evt = wh.verify(payload, {
-      "svix-id": svix_id,
-      "svix-timestamp": svix_timestamp,
-      "svix-signature": svix_signature,
-    });
+    
+    let evt;
+    try {
+      evt = wh.verify(payload, {
+        "svix-id": svix_id,
+        "svix-timestamp": svix_timestamp,
+        "svix-signature": svix_signature,
+      });
+    } catch (err) {
+      console.error("❌ Webhook verification failed:", err.message);
+      return {
+        statusCode: 400,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ error: 'Invalid signature' })
+      };
+    }
 
     console.log("✅ Webhook verified:", evt.type);
 
@@ -100,17 +120,17 @@ exports.handler = async (event, context) => {
         'Access-Control-Allow-Origin': '*',
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ success: true, message: 'Webhook received' })
+      body: JSON.stringify({ success: true, message: 'Webhook processed successfully' })
     };
   } catch (err) {
-    console.error("❌ Webhook verification failed:", err);
+    console.error("❌ Webhook processing failed:", err);
     return {
-      statusCode: 400,
+      statusCode: 500,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ error: 'Invalid signature' })
+      body: JSON.stringify({ error: 'Internal server error' })
     };
   }
 };
@@ -121,49 +141,68 @@ async function handleUserCreated(userData) {
   const email = email_addresses?.[0]?.email_address || null;
   const name = `${first_name || ""} ${last_name || ""}`.trim() || null;
 
-  console.log("👤 Creating user:", { id, email, name });
+  console.log("👤 Creating user in Supabase:", { id, email, name });
 
-  const { data: newUser, error } = await supabase
-    .from("users")
-    .insert({
-      clerk_user_id: id,
-      email,
-      name,
-      image_url,
-      role: USER_ROLES.UNASSIGNED,
-      credits: 2, // Give 2 free credits initially
-      verification_status: VERIFICATION_STATUS.PENDING,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .select()
-    .single();
+  try {
+    // First check if user already exists
+    const { data: existingUser } = await supabase
+      .from("users")
+      .select("id")
+      .eq("clerk_user_id", id)
+      .single();
 
-  if (error) {
-    console.error("❌ Supabase insert error:", error);
+    if (existingUser) {
+      console.log("ℹ️ User already exists in Supabase");
+      return;
+    }
+
+    // Create new user
+    const { data: newUser, error } = await supabase
+      .from("users")
+      .insert({
+        clerk_user_id: id,
+        email,
+        name,
+        image_url,
+        role: USER_ROLES.UNASSIGNED,
+        credits: 2, // Give 2 free credits initially
+        verification_status: VERIFICATION_STATUS.PENDING,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("❌ Supabase insert error:", error);
+      throw error;
+    }
+
+    console.log("✅ User created in Supabase:", email);
+
+    // Create welcome credit transaction
+    const { error: transactionError } = await supabase
+      .from("credit_transactions")
+      .insert([
+        {
+          user_id: newUser.id,
+          amount: 2,
+          type: TRANSACTION_TYPES.CREDIT_PURCHASE,
+          package_id: "welcome_bonus",
+          created_at: new Date().toISOString(),
+        },
+      ]);
+
+    if (transactionError) {
+      console.error("❌ Error creating welcome credit transaction:", transactionError);
+    } else {
+      console.log("✅ Welcome credits allocated to user:", newUser.id);
+    }
+
+  } catch (error) {
+    console.error("❌ Error in handleUserCreated:", error);
     throw error;
   }
-
-  console.log("✅ User created in Supabase:", email);
-
-  // Create welcome credit transaction
-  const { error: transactionError } = await supabase
-    .from("credit_transactions")
-    .insert([
-      {
-        user_id: newUser.id,
-        amount: 2,
-        type: TRANSACTION_TYPES.CREDIT_PURCHASE,
-        package_id: "welcome_bonus",
-        created_at: new Date().toISOString(),
-      },
-    ]);
-
-  if (transactionError) {
-    console.error("❌ Error creating welcome credit transaction:", transactionError);
-  }
-
-  console.log("✅ Welcome credits allocated to user:", newUser.id);
 }
 
 async function handleUserUpdated(userData) {
@@ -179,30 +218,35 @@ async function handleUserUpdated(userData) {
   const email = email_addresses?.[0]?.email_address || null;
   const name = `${first_name || ""} ${last_name || ""}`.trim() || null;
 
-  console.log("👤 Updating user:", { id, email, name });
+  console.log("👤 Updating user in Supabase:", { id, email, name });
 
-  const updateData = {
-    email,
-    name,
-    image_url,
-    updated_at: new Date().toISOString(),
-  };
+  try {
+    const updateData = {
+      email,
+      name,
+      image_url,
+      updated_at: new Date().toISOString(),
+    };
 
-  // Update role if provided in metadata
-  if (unsafe_metadata?.role && unsafe_metadata.role !== USER_ROLES.UNASSIGNED) {
-    updateData.role = unsafe_metadata.role;
-    console.log("🎯 Updating role to:", unsafe_metadata.role);
-  }
+    // Update role if provided in metadata
+    if (unsafe_metadata?.role && unsafe_metadata.role !== USER_ROLES.UNASSIGNED) {
+      updateData.role = unsafe_metadata.role;
+      console.log("🎯 Updating role to:", unsafe_metadata.role);
+    }
 
-  const { error } = await supabase
-    .from("users")
-    .update(updateData)
-    .eq("clerk_user_id", id);
+    const { error } = await supabase
+      .from("users")
+      .update(updateData)
+      .eq("clerk_user_id", id);
 
-  if (error) {
-    console.error("❌ Supabase update error:", error);
+    if (error) {
+      console.error("❌ Supabase update error:", error);
+      throw error;
+    }
+
+    console.log("✅ User updated in Supabase");
+  } catch (error) {
+    console.error("❌ Error in handleUserUpdated:", error);
     throw error;
   }
-
-  console.log("✅ User updated in Supabase");
 }

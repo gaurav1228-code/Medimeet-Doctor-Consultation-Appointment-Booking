@@ -16,7 +16,9 @@ const USER_ROLES = {
 const APPOINTMENT_CREDIT_COST = 2;
 
 exports.handler = async (event, context) => {
-  // Handle CORS
+  console.log('🔄 Update role function called');
+  
+  // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 200,
@@ -44,6 +46,7 @@ exports.handler = async (event, context) => {
     const { userId } = context.clientContext?.user || {};
     
     if (!userId) {
+      console.error('❌ No user ID found in context');
       return {
         statusCode: 401,
         headers: {
@@ -56,6 +59,17 @@ exports.handler = async (event, context) => {
 
     const { role } = JSON.parse(event.body);
     console.log("🔄 API: Updating role for user:", userId, "to:", role);
+
+    if (!role || !Object.values(USER_ROLES).includes(role)) {
+      return {
+        statusCode: 400,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ success: false, error: "Invalid role" })
+      };
+    }
 
     // Only give credits to PATIENTS, not DOCTORS
     const credits = role === USER_ROLES.PATIENT ? APPOINTMENT_CREDIT_COST : 0;

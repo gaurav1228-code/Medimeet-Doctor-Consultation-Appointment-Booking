@@ -7,7 +7,9 @@ const supabase = createClient(
 );
 
 exports.handler = async (event, context) => {
-  // Handle CORS
+  console.log('🔄 Update doctor profile function called');
+  
+  // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 200,
@@ -35,6 +37,7 @@ exports.handler = async (event, context) => {
     const { userId } = context.clientContext?.user || {};
     
     if (!userId) {
+      console.error('❌ No user ID found in context');
       return {
         statusCode: 401,
         headers: {
@@ -63,7 +66,7 @@ exports.handler = async (event, context) => {
       .update({
         role,
         specialty,
-        experience,
+        experience: parseInt(experience),
         description,
         aadhaar_number,
         pan_number,

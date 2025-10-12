@@ -15,7 +15,12 @@
   to = "/.netlify/functions/api/:splat"
   status = 200
 
+# Add this for SPA behavior
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Explicit function configurations
+[functions]
+  node_bundler = "esbuild"
