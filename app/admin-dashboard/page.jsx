@@ -10,40 +10,56 @@ import { redirect } from "next/navigation";
 import { USER_ROLES } from "@/lib/constants";
 import { PendingPayouts } from "./components/pending-payouts";
 import { getPendingPayouts } from "@/lib/actions/admin";
+import { createServerClient } from "@/lib/supabase-client";
 
-// Combined data fetching function with error handling
+// Server-side data fetching for admin dashboard
 async function getAdminData() {
   try {
-    console.log('🔄 Fetching admin data...');
+    console.log('🔄 Fetching admin data server-side...');
     
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const supabase = createServerClient();
     
-    const [pendingDoctorsRes, verifiedDoctorsRes, patientsRes, pendingPayoutsRes] = await Promise.all([
-      fetch(`${baseUrl}/api/admin?type=pending-doctors`, {
-        cache: 'no-store',
-      }),
-      fetch(`${baseUrl}/api/admin?type=verified-doctors`, {
-        cache: 'no-store',
-      }),
-      fetch(`${baseUrl}/api/admin?type=patients`, {
-        cache: 'no-store',
-      }),
+    // Fetch all data in parallel
+    const [
+      pendingDoctorsResult,
+      verifiedDoctorsResult, 
+      patientsResult,
+      payoutsResult
+    ] = await Promise.all([
+      // Pending doctors
+      supabase
+        .from('users')
+        .select('*')
+        .eq('role', 'DOCTOR')
+        .eq('verification_status', 'PENDING')
+        .order('created_at', { ascending: true }),
+      
+      // Verified doctors
+      supabase
+        .from('users')
+        .select('*')
+        .eq('role', 'DOCTOR')
+        .in('verification_status', ['VERIFIED', 'REJECTED'])
+        .order('created_at', { ascending: false }),
+      
+      // Patients
+      supabase
+        .from('users')
+        .select('*')
+        .eq('role', 'PATIENT')
+        .order('created_at', { ascending: false }),
+      
+      // Payouts
       getPendingPayouts()
     ]);
 
-    const [pendingDoctorsData, verifiedDoctorsData, patientsData] = await Promise.all([
-      pendingDoctorsRes.ok ? pendingDoctorsRes.json() : { doctors: [] },
-      verifiedDoctorsRes.ok ? verifiedDoctorsRes.json() : { doctors: [] },
-      patientsRes.ok ? patientsRes.json() : { patients: [] }
-    ]);
-
-    console.log('✅ Admin data fetched');
+    console.log('✅ Admin data fetched successfully');
 
     return {
-      pendingDoctors: pendingDoctorsData.doctors || [],
-      verifiedDoctors: verifiedDoctorsData.doctors || [],
-      patients: patientsData.patients || [],
-      pendingPayouts: pendingPayoutsRes.success ? pendingPayoutsRes.payouts : []
+      pendingDoctors: pendingDoctorsResult.data || [],
+      verifiedDoctors: verifiedDoctorsResult.data || [],
+      patients: patientsResult.data || [],
+      pendingPayouts: payoutsResult.success ? payoutsResult.payouts : []
     };
   } catch (error) {
     console.error("❌ Error fetching admin data:", error);

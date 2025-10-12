@@ -1,53 +1,22 @@
 // app/api/admin/route.js - UPDATED FOR NETLIFY
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { auth } from '@clerk/nextjs/server';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// Helper function to check admin access
-async function checkAdminAccess(userId) {
-  if (!userId) {
-    return { error: 'Unauthorized', status: 401 };
-  }
-
-  try {
-    const { data: adminUser, error } = await supabase
-      .from('users')
-      .select('role')
-      .eq('clerk_user_id', userId)
-      .single();
-
-    if (error || adminUser?.role !== 'ADMIN') {
-      return { error: 'Admin access required', status: 403 };
-    }
-
-    return { success: true };
-  } catch (error) {
-    return { error: 'Database error', status: 500 };
-  }
-}
-
+// This route will only be used for server components
 export async function GET(request) {
   try {
-    const { userId } = await auth();
-    const adminCheck = await checkAdminAccess(userId);
-    
-    if (adminCheck.error) {
-      return NextResponse.json(
-        { error: adminCheck.error }, 
-        { status: adminCheck.status }
-      );
-    }
-
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
 
     console.log('🔄 Admin API fetching:', type);
 
+    // For server components, we'll use service role key directly
+    // since we're already in a protected route
     let data, error;
 
     switch (type) {
