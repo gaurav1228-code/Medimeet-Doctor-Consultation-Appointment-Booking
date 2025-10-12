@@ -29,7 +29,6 @@ import { Label } from "@/components/ui/label";
 import { SPECIALTIES } from "@/lib/specialities";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 const doctorFormSchema = z.object({
   speciality: z.string().min(1, "Speciality is required"),
@@ -54,7 +53,7 @@ export default function RoleSelectorPage() {
   const [step, setStep] = useState("choose-role");
   const [redirecting, setRedirecting] = useState(false);
   const { user, isLoaded } = useUser();
-  const { updateUserRole } = useClientActions();
+  const { updateUserRole, updateDoctorProfile } = useClientActions();
   const router = useRouter();
 
   const {
@@ -85,16 +84,19 @@ export default function RoleSelectorPage() {
   useEffect(() => {
     if (isLoaded && user && !redirecting) {
       const userRole = user.unsafeMetadata?.role;
+      const onboardingCompleted = user.unsafeMetadata?.onboardingCompleted;
 
-      if (userRole === "PATIENT") {
+      console.log("🔍 Checking user role:", { userRole, onboardingCompleted });
+
+      if (onboardingCompleted) {
         setRedirecting(true);
-        router.replace("/Patient-dashboard");
-      } else if (userRole === "DOCTOR") {
-        setRedirecting(true);
-        router.replace("/Doctor-dashboard/verification");
-      } else if (userRole === "ADMIN") {
-        setRedirecting(true);
-        router.replace("/admin");
+        if (userRole === "PATIENT") {
+          router.replace("/Patient-dashboard");
+        } else if (userRole === "DOCTOR") {
+          router.replace("/Doctor-dashboard/verification");
+        } else if (userRole === "ADMIN") {
+          router.replace("/admin");
+        }
       }
     }
   }, [user, isLoaded, router, redirecting]);
@@ -160,42 +162,24 @@ export default function RoleSelectorPage() {
         }
       ];
 
-      // Update Supabase with doctor details and documents
-      const response = await fetch("/api/update-doctor-profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          role: "DOCTOR",
-          specialty: data.speciality,
-          experience: data.experience,
-          description: data.description,
-          aadhaar_number: data.aadhaar_number,
-          pan_number: data.pan_number,
-          medical_license_number: data.medical_license_number,
-          document_urls: documentUrls,
-          verification_status: "PENDING",
-        }),
+      // Update doctor profile using client action
+      const result = await updateDoctorProfile({
+        role: "DOCTOR",
+        specialty: data.speciality,
+        experience: data.experience,
+        description: data.description,
+        aadhaar_number: data.aadhaar_number,
+        pan_number: data.pan_number,
+        medical_license_number: data.medical_license_number,
+        document_urls: documentUrls,
+        verification_status: "PENDING",
       });
 
-      const result = await handleApiResponse(response);
-      
-      if (!response.ok || !result.success) {
-        throw new Error(
-          result.error || `Failed to update doctor profile: ${response.status}`
-        );
+      if (!result.success) {
+        throw new Error(result.error || "Failed to update doctor profile");
       }
 
       console.log("✅ Doctor profile and documents updated successfully");
-
-      // Update Clerk metadata after successful Supabase update
-      await user.update({
-        unsafeMetadata: {
-          role: "DOCTOR",
-          onboardingCompleted: true,
-        },
-      });
-
-      console.log("✅ Clerk metadata updated");
 
       // Redirect to verification page
       setRedirecting(true);
