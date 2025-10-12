@@ -1,3 +1,4 @@
+// functions/api/update-role.js
 const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(

@@ -1,7 +1,7 @@
 [build]
   command = "npm run build"
   publish = ".next"
-  functions = "functions"  # Changed from "netlify/functions"
+  functions = "functions"
 
 [build.environment]
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_test_Ymxlc3NlZC1kb2Jlcm1hbi0xLmNsZXJrLmFjY291bnRzLmRldiQ"
@@ -10,13 +10,20 @@
   NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5dGl2dGpzbnJjdWx4Z2d5ZnpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcyNDY5ODYsImV4cCI6MjA3MjgyMjk4Nn0.mFz2e2wewz_6oPWxZWg-My--S4OrgWttavQHCWwPJ54"
   SUPABASE_SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5dGl2dGpzbnJjdWx4Z2d5ZnpuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzI0Njk4NiwiZXhwIjoyMDcyODIyOTg2fQ.k5bduGYbDbb4zc3BPo5mjGUYar4wA-Siz29rCWcH2ZQ"
   CLERK_WEBHOOK_SECRET = "whsec_pM2Xqse9QnDvbb/665eoJx5VG/PARBtl"
-  NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_FALLBACK_REDIRECT_URL = "/RoleSelector"
-  NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_FALLBACK_REDIRECT_URL = "/RoleSelector"
+  NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_FALLBACK_REDIRECT_URL = "https://medimeet-doctor-c.netlify.app/RoleSelector"
+  NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_FALLBACK_REDIRECT_URL = "https://medimeet-doctor-c.netlify.app/RoleSelector"
   NEXT_PUBLIC_APP_URL = "https://medimeet-doctor-c.netlify.app"
 
+# Redirect API calls to Netlify functions
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
+  status = 200
+
+# Handle all other routes with Next.js
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
   status = 200
 
 [functions]
