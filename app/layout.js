@@ -9,7 +9,6 @@ import { Toaster } from "sonner";
 import HMSProviderWrapper from "@/components/HMSProviderWrapper";
 import Footer from "@/components/Footer";
 
-
 const inter = Inter({
   subsets: ["latin"],
 });
@@ -21,7 +20,14 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <ClerkProvider appearance={{ baseTheme: dark }}>
+    <ClerkProvider 
+      appearance={{ baseTheme: dark }}
+      publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      signInFallbackRedirectUrl="/RoleSelector"
+      signUpFallbackRedirectUrl="/RoleSelector"
+      signInForceRedirectUrl="/RoleSelector"
+      signUpForceRedirectUrl="/RoleSelector"
+    >
       <html lang="en" suppressHydrationWarning>
         <body className={inter.className}>
           <ThemeProvider attribute="class" defaultTheme="dark">

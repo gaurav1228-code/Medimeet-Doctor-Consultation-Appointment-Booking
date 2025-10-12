@@ -5,7 +5,6 @@ import { useState, useEffect } from "react";
 import { useClientActions } from "@/lib/client-actions";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { handleApiResponse } from "@/lib/api-utils";
 import {
   Card,
   CardContent,
@@ -14,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Stethoscope, User, FileText, Upload, X } from "lucide-react";
+import { Loader2, Stethoscope, User, FileText, Upload } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -30,6 +29,7 @@ import { SPECIALTIES } from "@/lib/specialities";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
+// Doctor form validation schema
 const doctorFormSchema = z.object({
   speciality: z.string().min(1, "Speciality is required"),
   experience: z
@@ -51,11 +51,11 @@ const doctorFormSchema = z.object({
 export default function RoleSelectorPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState("choose-role");
-  const [redirecting, setRedirecting] = useState(false);
-  const { user, isLoaded } = useUser();
+  const { user, isLoaded, isSignedIn } = useUser();
   const { updateUserRole, updateDoctorProfile } = useClientActions();
   const router = useRouter();
 
+  // Doctor form
   const {
     register,
     handleSubmit,
@@ -82,51 +82,67 @@ export default function RoleSelectorPage() {
 
   // Check if user already has a role and redirect
   useEffect(() => {
-    if (isLoaded && user && !redirecting) {
+    if (isLoaded && isSignedIn && user) {
       const userRole = user.unsafeMetadata?.role;
       const onboardingCompleted = user.unsafeMetadata?.onboardingCompleted;
 
       console.log("🔍 Checking user role:", { userRole, onboardingCompleted });
 
-      if (onboardingCompleted) {
-        setRedirecting(true);
+      if (onboardingCompleted && userRole) {
+        console.log("✅ User has role, redirecting...", userRole);
         if (userRole === "PATIENT") {
           router.replace("/Patient-dashboard");
         } else if (userRole === "DOCTOR") {
           router.replace("/Doctor-dashboard/verification");
         } else if (userRole === "ADMIN") {
-          router.replace("/admin");
+          router.replace("/admin-dashboard");
         }
+      } else {
+        console.log("🔄 User needs to select role");
+        setStep("choose-role");
       }
     }
-  }, [user, isLoaded, router, redirecting]);
+  }, [user, isLoaded, isSignedIn, router]);
 
   const handleRoleSelect = async (role) => {
     if (!user || isLoading) return;
 
-    setIsLoading(true);
-    try {
-      console.log("🔄 Starting role selection for:", role);
+    if (role === "PATIENT") {
+      setIsLoading(true);
+      try {
+        console.log("🔄 Starting role selection for:", role);
 
-      // Update role using client action
-      const result = await updateUserRole(role);
+        // Update role using client action
+        const result = await updateUserRole(role);
 
-      console.log("📊 Role update result:", result);
+        console.log("📊 Role update result:", result);
 
-      if (result.success) {
-        console.log("✅ Role update successful, redirecting...");
-        setRedirecting(true);
-        router.replace(
-          role === "PATIENT" ? "/Patient-dashboard" : "/Doctor-dashboard/verification"
-        );
-      } else {
-        throw new Error(result.error);
+        if (result.success) {
+          console.log("✅ Role update successful, updating Clerk metadata...");
+          
+          // Update Clerk metadata
+          await user.update({
+            unsafeMetadata: { 
+              role, 
+              onboardingCompleted: true 
+            },
+          });
+
+          console.log("✅ Clerk metadata updated, redirecting...");
+          
+          // Force redirect after metadata update
+          window.location.href = "/Patient-dashboard";
+        } else {
+          throw new Error(result.error);
+        }
+      } catch (error) {
+        console.error("❌ Error updating role:", error);
+        alert("Error updating role. Please try again.");
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error("❌ Error updating role:", error);
-      alert("Error updating role. Please try again.");
-    } finally {
-      setIsLoading(false);
+    } else if (role === "DOCTOR") {
+      setStep("doctor-form");
     }
   };
 
@@ -181,9 +197,16 @@ export default function RoleSelectorPage() {
 
       console.log("✅ Doctor profile and documents updated successfully");
 
+      // Update Clerk metadata
+      await user.update({
+        unsafeMetadata: { 
+          role: "DOCTOR",
+          onboardingCompleted: true,
+        },
+      });
+
       // Redirect to verification page
-      setRedirecting(true);
-      router.replace("/Doctor-dashboard/verification");
+      window.location.href = "/Doctor-dashboard/verification";
     } catch (error) {
       console.error("❌ Error submitting doctor profile:", error);
       alert("Error submitting doctor profile. Please try again.");
@@ -192,7 +215,7 @@ export default function RoleSelectorPage() {
     }
   };
 
-  if (!isLoaded || redirecting) {
+  if (!isLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
@@ -223,8 +246,7 @@ export default function RoleSelectorPage() {
                   Join as a Patient
                 </CardTitle>
                 <CardDescription className="mb-4">
-                  Book appointments, consult with doctors, and manage your
-                  healthcare journey
+                  Book appointments, consult with doctors, and manage your healthcare journey
                 </CardDescription>
                 <Button
                   className="w-full mt-2 bg-emerald-600 hover:bg-emerald-700"
@@ -252,12 +274,11 @@ export default function RoleSelectorPage() {
                   Join as a Doctor
                 </CardTitle>
                 <CardDescription className="mb-4">
-                  Create your professional profile, set your availability, and
-                  provide consultations
+                  Create your professional profile, set your availability, and provide consultations
                 </CardDescription>
                 <Button
                   className="w-full mt-2 bg-emerald-600 hover:bg-emerald-700"
-                  onClick={() => setStep("doctor-form")}
+                  onClick={() => handleRoleSelect("DOCTOR")}
                   disabled={isLoading}
                 >
                   Continue as a Doctor

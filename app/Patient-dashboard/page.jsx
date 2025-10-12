@@ -18,8 +18,14 @@ import { getPatientStats } from "@/lib/actions/patient-stats";
 async function PatientDashboard() {
   const userData = await getUserData();
 
-  if (!userData || userData.role !== "PATIENT") {
-    redirect("/");
+  // Redirect if not patient or not authenticated
+  if (!userData) {
+    redirect("/sign-in");
+  }
+
+  if (userData.role !== "PATIENT") {
+    console.log("❌ User is not a patient, redirecting to role selector");
+    redirect("/RoleSelector");
   }
 
   const { stats } = await getPatientStats();

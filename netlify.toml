@@ -1,29 +1,10 @@
-[build]
-  command = "npm run build"
-  publish = ".next"
-  functions = "netlify/functions"
-
-[build.environment]
-  NODE_VERSION = "18"
-  NEXT_TELEMETRY_DISABLED = "1"
-
 [[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/api/:splat"
-  status = 200
-
-[[redirects]]
-  from = "/*"
+  from = "/"
   to = "/index.html"
   status = 200
 
 [[redirects]]
-  from = "/RoleSelector"
-  to = "/RoleSelector"
-  status = 200
-
-[[redirects]]
-  from = "/Patient-dashboard/*"
+  from = "/Patient-dashboard"
   to = "/Patient-dashboard/index.html"
   status = 200
 
@@ -33,10 +14,12 @@
   status = 200
 
 [[redirects]]
-  from = "/admin-dashboard/*"
-  to = "/admin-dashboard/index.html"
+  from = "/RoleSelector"
+  to = "/RoleSelector/index.html"
   status = 200
 
-[functions]
-  node_bundler = "esbuild"
-  external_node_modules = ["@supabase/supabase-js", "jsonwebtoken", "jose", "uuid"]
+# Handle client-side routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
