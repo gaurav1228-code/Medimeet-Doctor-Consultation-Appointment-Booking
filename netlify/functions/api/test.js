@@ -1,3 +1,4 @@
+// netlify/functions/api/test.js
 exports.handler = async (event, context) => {
   console.log('🔍 Test API function called');
   

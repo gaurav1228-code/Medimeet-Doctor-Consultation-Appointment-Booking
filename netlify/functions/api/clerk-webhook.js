@@ -1,4 +1,4 @@
-// functions/api/clerk-webhook.js
+// netlify/functions/api/clerk-webhook.js
 const { Webhook } = require('svix');
 const { createClient } = require('@supabase/supabase-js');
 

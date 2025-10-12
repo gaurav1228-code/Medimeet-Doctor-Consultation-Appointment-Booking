@@ -1,8 +1,0 @@
-{
-  "name": "netlify-functions",
-  "version": "1.0.0",
-  "dependencies": {
-    "svix": "^1.13.0",
-    "@supabase/supabase-js": "^2.38.0"
-  }
-}
