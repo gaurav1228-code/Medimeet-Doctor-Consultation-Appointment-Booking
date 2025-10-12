@@ -1,4 +1,3 @@
-// netlify\functions\test.js
 exports.handler = async (event, context) => {
   return {
     statusCode: 200,
@@ -7,7 +6,7 @@ exports.handler = async (event, context) => {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({ 
-      message: 'Netlify functions are working!',
+      message: 'Hello from Netlify Function!',
       timestamp: new Date().toISOString()
     })
   };
