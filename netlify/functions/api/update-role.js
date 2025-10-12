@@ -7,16 +7,14 @@ const supabase = createClient(
 );
 
 exports.handler = async (event, context) => {
-  console.log('🔄 Update role function called');
-  
-  // Handle CORS preflight
+  // Handle CORS
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 200,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS'
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
       },
       body: ''
     };
@@ -37,7 +35,6 @@ exports.handler = async (event, context) => {
     const { userId } = context.clientContext?.user || {};
     
     if (!userId) {
-      console.error('❌ No user ID found in context');
       return {
         statusCode: 401,
         headers: {
@@ -51,7 +48,6 @@ exports.handler = async (event, context) => {
     const { role } = JSON.parse(event.body);
     console.log("🔄 API: Updating role for user:", userId, "to:", role);
 
-    // Only give credits to PATIENTS, not DOCTORS
     const credits = role === 'PATIENT' ? 2 : 0;
 
     const { data, error } = await supabase

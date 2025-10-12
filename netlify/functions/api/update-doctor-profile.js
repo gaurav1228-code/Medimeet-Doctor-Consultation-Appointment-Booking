@@ -7,9 +7,6 @@ const supabase = createClient(
 );
 
 exports.handler = async (event, context) => {
-  console.log('🔄 Update doctor profile function called');
-  
-  // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 200,
@@ -37,7 +34,6 @@ exports.handler = async (event, context) => {
     const { userId } = context.clientContext?.user || {};
     
     if (!userId) {
-      console.error('❌ No user ID found in context');
       return {
         statusCode: 401,
         headers: {
@@ -59,8 +55,6 @@ exports.handler = async (event, context) => {
       document_urls 
     } = JSON.parse(event.body);
 
-    console.log("🔄 API: Updating doctor profile for user:", userId);
-
     const { data, error } = await supabase
       .from("users")
       .update({
@@ -80,7 +74,6 @@ exports.handler = async (event, context) => {
       .single();
 
     if (error) {
-      console.error("❌ API: Supabase error:", error);
       return {
         statusCode: 500,
         headers: {
@@ -90,8 +83,6 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({ success: false, error: error.message })
       };
     }
-
-    console.log("✅ API: Doctor profile updated successfully");
     
     return {
       statusCode: 200,
@@ -103,7 +94,6 @@ exports.handler = async (event, context) => {
     };
     
   } catch (error) {
-    console.error("❌ API: Unexpected error:", error);
     return {
       statusCode: 500,
       headers: {

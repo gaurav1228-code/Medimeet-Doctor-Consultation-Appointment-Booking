@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "npm install --legacy-peer-deps && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "build:netlify": "npm install --legacy-peer-deps && next build"
   },
   "dependencies": {
     "@100mslive/hms-video": "^0.9.28",

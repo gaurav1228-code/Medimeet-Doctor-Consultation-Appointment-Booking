@@ -1,4 +1,4 @@
-// netlify/functions/api/admin.js
+// /netlify/functions/api/admin.js
 const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(
