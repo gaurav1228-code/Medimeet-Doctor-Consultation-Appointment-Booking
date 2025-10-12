@@ -1,6 +1,7 @@
 [build]
   command = "npm run build"
   publish = ".next"
+  functions = "functions"  # Changed from "netlify/functions"
 
 [build.environment]
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_test_Ymxlc3NlZC1kb2Jlcm1hbi0xLmNsZXJrLmFjY291bnRzLmRldiQ"
@@ -16,11 +17,6 @@
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
-  status = 200
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
   status = 200
 
 [functions]

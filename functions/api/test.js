@@ -2,12 +2,13 @@ exports.handler = async (event, context) => {
   return {
     statusCode: 200,
     headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify({ 
-      message: 'Hello from Netlify Function!',
+      success: true,
+      message: 'API test function is working!',
+      path: event.path,
       timestamp: new Date().toISOString()
-    })
+    }),
   };
 };
